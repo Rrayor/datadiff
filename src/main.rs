@@ -1,14 +1,14 @@
 use std::{fs::File, error::Error, io::Read, path::Path};
 
 #[derive(Debug)]
-struct DataObject<'a> {
+struct DataNode<'a> {
     name: &'a str,
     value: Option<&'a str>,
-    children: Vec<DataObject<'a>>
+    children: Vec<DataNode<'a>>
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>>{
-    let test_do = DataObject {
+    let test_do = DataNode {
         name: "donnow",
         value: Some("something"),
         children: vec![]
