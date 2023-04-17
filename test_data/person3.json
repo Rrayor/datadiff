@@ -1,0 +1,62 @@
+{
+  "name": "Sarah Smith",
+  "age": 30,
+  "address": {
+    "street": "321 Oak St",
+    "city": "Anytown",
+    "state": "IL",
+    "zip": "67890",
+    "coordinates": {
+      "latitude": 41.0000,
+      "longitude": -88.0000
+    }
+  },
+  "phone_numbers": [
+    {
+      "type": "home",
+      "number": "555-1234",
+      "ext": null,
+      "notes": {
+        "description": "Do not call after 9pm",
+        "follow_up": "Call back next week"
+      }
+    },
+    {
+      "type": "work",
+      "number": "555-5678",
+      "ext": "1234",
+      "notes": {
+        "description": "Call between 9am and 5pm",
+        "follow_up": "Call back tomorrow"
+      }
+    }
+  ],
+  "email_addresses": [
+    "sarah.smith@example.com"
+  ],
+  "employment": {
+    "employer": "ABC Corporation",
+    "position": "Manager",
+    "start_date": "2015-01-01",
+    "end_date": null,
+    "department": {
+      "name": "Sales",
+      "manager": "John Doe",
+      "members": [
+        {
+          "name": "Jane Smith",
+          "title": "Sales Rep",
+          "phone": "555-2468",
+          "email": "jane.smith@example.com"
+        },
+        {
+          "name": "Bob Johnson",
+          "title": "Sales Rep",
+          "phone": "555-3691",
+          "email": "bob.johnson@example.com"
+        }
+      ]
+    }
+  }
+}
+
