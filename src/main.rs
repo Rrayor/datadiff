@@ -1,21 +1,24 @@
-use serde::Serialize;
 use serde_json::{Map, Number, Result, Value};
 use std::fmt::Display;
 use std::fs::File;
 use std::io::BufReader;
 
-#[derive(Clone)]
 struct KeyDiff<'a> {
     key: &'a str,
     has: &'a str,
     misses: &'a str,
 }
 
-#[derive(Clone)]
 struct ValueDiff<'b> {
     key: &'b str,
-    value1: (&'b str, &'b str),
-    value2: (&'b str, &'b str),
+    value1: (&'b str, String),
+    value2: (&'b str, String),
+}
+
+struct TypeDiff<'c> {
+    key: &'c str,
+    type1: (&'c str, &'c str),
+    type2: (&'c str, &'c str),
 }
 
 fn main() -> Result<()> {
@@ -36,54 +39,218 @@ fn read_json_file(file_path: &str) -> Result<Value> {
 fn compare_json<'a>(
     a: &'a Value,
     b: &'a Value,
-) -> (Box<Vec<KeyDiff<'a>>>, Box<Vec<ValueDiff<'a>>>) {
+) -> (Vec<KeyDiff<'a>>, Vec<TypeDiff<'a>>, Vec<ValueDiff<'a>>) {
     match (a, b) {
-        (Value::Null, Value::Null) => (Box::new(vec![]), Box::new(vec![])),
-        (Value::Bool(a), Value::Bool(b)) => compare_primitives(a, b),
-        (Value::Number(a), Value::Number(b)) => compare_primitives(a, b),
-        (Value::String(a), Value::String(b)) => compare_primitives(a, b),
-        (Value::Array(a), Value::Array(b)) => compare_arrays(a, b),
+        (Value::Null, Value::Null) => (vec![], vec![], vec![]),
+        (Value::Bool(a), Value::Bool(b)) => (vec![], vec![], compare_primitives(a, b)),
+        (Value::Number(a), Value::Number(b)) => (vec![], vec![], compare_primitives(a, b)),
+        (Value::String(a), Value::String(b)) => (vec![], vec![], compare_primitives(a, b)),
+        (Value::Array(a), Value::Array(b)) => (vec![], vec![], compare_arrays(a, b)),
         (Value::Object(a), Value::Object(b)) => compare_objects(a, b),
+        (Value::Null, Value::Bool(_)) => (vec![], vec![], handle_one_element_null_primitives(a, b)),
+        (Value::Null, Value::Number(_)) => {
+            (vec![], vec![], handle_one_element_null_primitives(a, b))
+        }
+        (Value::Null, Value::String(_)) => {
+            (vec![], vec![], handle_one_element_null_primitives(a, b))
+        }
+        (Value::Null, Value::Array(_)) => (vec![], vec![], handle_one_element_null_arrays(a, b)),
+        (Value::Null, Value::Object(_)) => handle_one_element_null_objects(a, b),
+        (Value::Bool(_), Value::Null) => (vec![], vec![], handle_one_element_null_primitives(a, b)),
+        (Value::Bool(_), Value::Number(_)) => (vec![], vec![], compare_primitives(a, b)),
+        (Value::Bool(_), Value::String(_)) => (vec![], vec![], compare_primitives(a, b)),
+        (Value::Bool(_), Value::Array(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Bool(_), Value::Object(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Number(_), Value::Null) => {
+            (vec![], vec![], handle_one_element_null_primitives(a, b))
+        }
+        (Value::Number(_), Value::Bool(_)) => (vec![], vec![], compare_primitives(a, b)),
+        (Value::Number(_), Value::String(_)) => (vec![], vec![], compare_primitives(a, b)),
+        (Value::Number(_), Value::Array(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Number(_), Value::Object(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::String(_), Value::Null) => {
+            (vec![], vec![], handle_one_element_null_primitives(a, b))
+        }
+        (Value::String(_), Value::Bool(_)) => (vec![], vec![], compare_primitives(a, b)),
+        (Value::String(_), Value::Number(_)) => (vec![], vec![], compare_primitives(a, b)),
+        (Value::String(_), Value::Array(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::String(_), Value::Object(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Array(_), Value::Null) => (vec![], vec![], handle_one_element_null_arrays(a, b)),
+        (Value::Array(_), Value::Bool(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Array(_), Value::Number(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Array(_), Value::String(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Array(_), Value::Object(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Object(_), Value::Null) => handle_one_element_null_objects(a, b),
+        (Value::Object(_), Value::Bool(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Object(_), Value::Number(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Object(_), Value::String(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Object(_), Value::Array(_)) => (vec![], handle_different_types(a, b), vec![]),
     }
 }
 
-fn compare_arrays<'a>(
-    a: &'a Vec<Value>,
-    b: &'a Vec<Value>,
-) -> (Box<Vec<KeyDiff<'a>>>, Box<Vec<ValueDiff<'a>>>) {
-    let mut key_diff = Box::new(vec![]);
-    let mut value_diff = Box::new(vec![]);
+fn handle_one_element_null_primitives<'a>(a: &'a Value, b: &'a Value) -> Vec<ValueDiff<'a>> {
+    if a.is_null() {
+        return vec![ValueDiff {
+            // TODO: add key
+            key: "",
+            value1: ("", "".to_string()),
+            value2: ("", b.to_string()),
+        }];
+    } else {
+        vec![ValueDiff {
+            // TODO: add key
+            key: "",
+            value1: ("", a.to_string()),
+            value2: ("", "".to_string()),
+        }]
+    }
+}
+
+fn handle_one_element_null_arrays<'a>(a: &'a Value, b: &'a Value) -> Vec<ValueDiff<'a>> {
+    let mut value_diff = vec![];
+
+    if a.is_null() {
+        // b should always be an array, because the function is called from the appropriate match arm
+        for b_item in b.as_array().unwrap() {
+            value_diff.push(ValueDiff {
+                // TODO: key
+                key: "",
+                value1: ("", "".to_string()),
+                value2: ("", b_item.to_string()),
+            });
+        }
+    } else {
+        // a should always be an array, because the function is called from the appropriate match arm
+        for a_item in a.as_array().unwrap() {
+            value_diff.push(ValueDiff {
+                // TODO: key
+                key: "",
+                value1: ("", a_item.to_string()),
+                value2: ("", "".to_string()),
+            });
+        }
+    }
+
+    value_diff
+}
+
+fn handle_one_element_null_objects<'a>(
+    a: &'a Value,
+    b: &'a Value,
+) -> (Vec<KeyDiff<'a>>, Vec<TypeDiff<'a>>, Vec<ValueDiff<'a>>) {
+    let mut key_diff = vec![];
+    let mut type_diff = vec![];
+    let mut value_diff = vec![];
+
+    if a.is_null() {
+        // b is always an object at this point, because this function is only called from the appropriate match case
+        for (b_key, b_value) in b.as_object().unwrap().iter() {
+            key_diff.push(KeyDiff {
+                key: b_key,
+                // TODO: use file names instead
+                has: "b",
+                misses: "a",
+            });
+
+            type_diff.push(TypeDiff {
+                key: b_key,
+                type1: ("", ""),
+                type2: ("", get_type(b_value)),
+            });
+
+            value_diff.push(ValueDiff {
+                key: &b_key,
+                value1: ("", "".to_string()),
+                value2: ("", b_value.to_string()),
+            });
+        }
+    } else {
+        // b is always an object at this point, because this function is only called from the appropriate match case
+        for (a_key, a_value) in a.as_object().unwrap().iter() {
+            key_diff.push(KeyDiff {
+                key: a_key,
+                // TODO: use file names instead
+                has: "a",
+                misses: "b",
+            });
+
+            type_diff.push(TypeDiff {
+                key: a_key,
+                type1: ("", ""),
+                type2: ("", get_type(a_value)),
+            });
+
+            value_diff.push(ValueDiff {
+                key: &a_key,
+                value1: ("", a_value.to_string()),
+                value2: ("", "".to_string()),
+            });
+        }
+    }
+
+    (key_diff, type_diff, value_diff)
+}
+
+fn handle_different_types<'a>(a: &'a Value, b: &'a Value) -> Vec<TypeDiff<'a>> {
+    vec![TypeDiff {
+        // TODO: key
+        key: "",
+        type1: ("", get_type(a)),
+        type2: ("", get_type(b)),
+    }]
+}
+
+fn get_type<'a>(value: &'a Value) -> &'a str {
+    if value.is_null() {
+        return "null";
+    } else if value.is_boolean() {
+        return "bool";
+    } else if value.is_number() {
+        return "number";
+    } else if value.is_string() {
+        return "string";
+    } else if value.is_array() {
+        return "array";
+    } else if value.is_object() {
+        return "object";
+    } else {
+        "unknown type"
+    }
+}
+
+// TODO: This solution only works if the array are the same size and in the same order
+//  It should also cover the cases when one or the other is larger or not in the same order
+//  Basically this needs a complete rewrite
+fn compare_arrays<'a>(a: &'a Vec<Value>, b: &'a Vec<Value>) -> Vec<ValueDiff<'a>> {
+    let mut value_diff = vec![];
 
     // TODO: Array checking should be configurable if order matters or not or even if they should be checked
     for (i, a_item) in a.iter().enumerate() {
-        let (mut item_key_diff, mut item_value_diff) = compare_primitives(a_item, &b[i]);
-        key_diff.append(&mut item_key_diff);
+        let mut item_value_diff = compare_primitives(a_item, &b[i]);
         value_diff.append(&mut item_value_diff);
     }
 
-    (key_diff, value_diff)
+    value_diff
 }
 
 // TODO: This is not recursive!
 fn compare_objects<'a>(
     a: &'a Map<String, Value>,
     b: &'a Map<String, Value>,
-) -> (Box<Vec<KeyDiff<'a>>>, Box<Vec<ValueDiff<'a>>>) {
-    let mut key_diff = Box::new(vec![]);
-    let mut value_diff = Box::new(vec![]);
+) -> (Vec<KeyDiff<'a>>, Vec<TypeDiff<'a>>, Vec<ValueDiff<'a>>) {
+    let mut key_diff = vec![];
+    let mut type_diff = vec![]; // TODO: check for these in fields
+    let mut value_diff = vec![];
 
-    // TODO: Array checking should be configurable if order matters or not or even if they should be checked
-    for (key, value) in a.iter() {
+    for (a_key, a_value) in a.iter() {
         //Comparing keys
-        if let Some(b_value) = b.get(key) {
+        if let Some(b_value) = b.get(a_key) {
             // Comparing values
-            let (mut item_key_diff, mut item_value_diff) =
-                compare_primitives(value, b.get(key).unwrap());
-            key_diff.append(&mut item_key_diff);
+            let mut item_value_diff = compare_primitives(a_value, b_value);
             value_diff.append(&mut item_value_diff);
         } else {
             key_diff.push(KeyDiff {
-                key: key,
+                key: a_key,
                 // TODO: use file names instead
                 has: "a",
                 misses: "b",
@@ -91,24 +258,20 @@ fn compare_objects<'a>(
         }
     }
 
-    (key_diff, value_diff)
+    (key_diff, type_diff, value_diff)
 }
 
-fn compare_primitives<'a, T: PartialEq + Serialize + Display>(
-    a: &'a T,
-    b: &'a T,
-) -> (Box<Vec<KeyDiff<'a>>>, Box<Vec<ValueDiff<'a>>>) {
-    // TODO: remove key_diff, not needed with primitives
-    let key_diff = Box::new(vec![]);
-    let mut value_diff = Box::new(vec![]);
+fn compare_primitives<'a, T: PartialEq + Display>(a: &'a T, b: &'a T) -> Vec<ValueDiff<'a>> {
+    let mut value_diff = vec![];
 
     if !a.eq(b) {
         value_diff.push(ValueDiff {
+            // TODO: add key
             key: "",
-            value1: ("", a.to_string().as_str()),
-            value2: ("", b.to_string().as_str()),
+            value1: ("", a.to_string()),
+            value2: ("", b.to_string()),
         });
     }
 
-    (key_diff, value_diff)
+    value_diff
 }
