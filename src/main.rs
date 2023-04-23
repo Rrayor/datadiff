@@ -1,24 +1,24 @@
-use serde_json::{Map, Number, Result, Value};
+use serde_json::{json, Map, Number, Result, Value};
 use std::fmt::Display;
 use std::fs::File;
 use std::io::BufReader;
 
 struct KeyDiff<'a> {
-    key: &'a str,
+    key: String,
     has: &'a str,
     misses: &'a str,
 }
 
 struct ValueDiff<'b> {
-    key: &'b str,
+    key: String,
     value1: (&'b str, String),
     value2: (&'b str, String),
 }
 
 struct TypeDiff<'c> {
-    key: &'c str,
-    type1: (&'c str, &'c str),
-    type2: (&'c str, &'c str),
+    key: String,
+    type1: (&'c str, String),
+    type2: (&'c str, String),
 }
 
 fn main() -> Result<()> {
@@ -47,66 +47,174 @@ fn compare_json<'a>(
         (Value::String(a), Value::String(b)) => (vec![], vec![], compare_primitives(a, b)),
         (Value::Array(a), Value::Array(b)) => (vec![], vec![], compare_arrays(a, b)),
         (Value::Object(a), Value::Object(b)) => compare_objects(a, b),
-        (Value::Null, Value::Bool(_)) => (vec![], vec![], handle_one_element_null_primitives(a, b)),
-        (Value::Null, Value::Number(_)) => {
-            (vec![], vec![], handle_one_element_null_primitives(a, b))
+        (Value::Null, Value::Bool(b)) => (
+            vec![],
+            vec![],
+            handle_one_element_null_primitives(a.clone(), json!(b).to_owned()),
+        ),
+        (Value::Null, Value::Number(b)) => (
+            vec![],
+            vec![],
+            handle_one_element_null_primitives(a.clone(), json!(b).to_owned()),
+        ),
+        (Value::Null, Value::String(b)) => (
+            vec![],
+            vec![],
+            handle_one_element_null_primitives(a.clone(), json!(b).to_owned()),
+        ),
+        (Value::Null, Value::Array(b)) => (
+            vec![],
+            vec![],
+            handle_one_element_null_arrays(a.clone(), json!(b).to_owned()),
+        ),
+        (Value::Null, Value::Object(b)) => {
+            handle_one_element_null_objects(a.clone(), json!(b).to_owned())
         }
-        (Value::Null, Value::String(_)) => {
-            (vec![], vec![], handle_one_element_null_primitives(a, b))
+        (Value::Bool(a), Value::Null) => (
+            vec![],
+            vec![],
+            handle_one_element_null_primitives(json!(a).to_owned(), b.clone()),
+        ),
+        (Value::Bool(a), Value::Number(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Bool(a), Value::String(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Bool(a), Value::Array(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Bool(a), Value::Object(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Number(a), Value::Null) => (
+            vec![],
+            vec![],
+            handle_one_element_null_primitives(json!(a).to_owned(), b.clone()),
+        ),
+        (Value::Number(a), Value::Bool(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Number(a), Value::String(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Number(a), Value::Array(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Number(a), Value::Object(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::String(a), Value::Null) => (
+            vec![],
+            vec![],
+            handle_one_element_null_primitives(json!(a).to_owned(), b.clone()),
+        ),
+        (Value::String(a), Value::Bool(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::String(a), Value::Array(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::String(a), Value::Number(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::String(a), Value::Object(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Array(a), Value::Null) => (
+            vec![],
+            vec![],
+            handle_one_element_null_arrays(json!(a).to_owned(), b.clone()),
+        ),
+        (Value::Array(a), Value::Bool(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Array(a), Value::Number(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Array(a), Value::String(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Array(a), Value::Object(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Object(a), Value::Null) => {
+            handle_one_element_null_objects(json!(a).to_owned(), b.clone())
         }
-        (Value::Null, Value::Array(_)) => (vec![], vec![], handle_one_element_null_arrays(a, b)),
-        (Value::Null, Value::Object(_)) => handle_one_element_null_objects(a, b),
-        (Value::Bool(_), Value::Null) => (vec![], vec![], handle_one_element_null_primitives(a, b)),
-        (Value::Bool(_), Value::Number(_)) => (vec![], vec![], compare_primitives(a, b)),
-        (Value::Bool(_), Value::String(_)) => (vec![], vec![], compare_primitives(a, b)),
-        (Value::Bool(_), Value::Array(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Bool(_), Value::Object(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Number(_), Value::Null) => {
-            (vec![], vec![], handle_one_element_null_primitives(a, b))
-        }
-        (Value::Number(_), Value::Bool(_)) => (vec![], vec![], compare_primitives(a, b)),
-        (Value::Number(_), Value::String(_)) => (vec![], vec![], compare_primitives(a, b)),
-        (Value::Number(_), Value::Array(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Number(_), Value::Object(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::String(_), Value::Null) => {
-            (vec![], vec![], handle_one_element_null_primitives(a, b))
-        }
-        (Value::String(_), Value::Bool(_)) => (vec![], vec![], compare_primitives(a, b)),
-        (Value::String(_), Value::Number(_)) => (vec![], vec![], compare_primitives(a, b)),
-        (Value::String(_), Value::Array(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::String(_), Value::Object(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Array(_), Value::Null) => (vec![], vec![], handle_one_element_null_arrays(a, b)),
-        (Value::Array(_), Value::Bool(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Array(_), Value::Number(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Array(_), Value::String(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Array(_), Value::Object(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Object(_), Value::Null) => handle_one_element_null_objects(a, b),
-        (Value::Object(_), Value::Bool(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Object(_), Value::Number(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Object(_), Value::String(_)) => (vec![], handle_different_types(a, b), vec![]),
-        (Value::Object(_), Value::Array(_)) => (vec![], handle_different_types(a, b), vec![]),
+        (Value::Object(a), Value::Bool(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Object(a), Value::Number(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Object(a), Value::String(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
+        (Value::Object(a), Value::Array(b)) => (
+            vec![],
+            handle_different_types(json!(a).to_owned(), json!(b).to_owned()),
+            vec![],
+        ),
     }
 }
 
-fn handle_one_element_null_primitives<'a>(a: &'a Value, b: &'a Value) -> Vec<ValueDiff<'a>> {
+fn handle_one_element_null_primitives<'a>(a: Value, b: Value) -> Vec<ValueDiff<'a>> {
     if a.is_null() {
         return vec![ValueDiff {
             // TODO: add key
-            key: "",
+            key: "".to_string(),
             value1: ("", "".to_string()),
             value2: ("", b.to_string()),
         }];
     } else {
         vec![ValueDiff {
             // TODO: add key
-            key: "",
+            key: "".to_string(),
             value1: ("", a.to_string()),
             value2: ("", "".to_string()),
         }]
     }
 }
 
-fn handle_one_element_null_arrays<'a>(a: &'a Value, b: &'a Value) -> Vec<ValueDiff<'a>> {
+fn handle_one_element_null_arrays<'a>(a: Value, b: Value) -> Vec<ValueDiff<'a>> {
     let mut value_diff = vec![];
 
     if a.is_null() {
@@ -114,7 +222,7 @@ fn handle_one_element_null_arrays<'a>(a: &'a Value, b: &'a Value) -> Vec<ValueDi
         for b_item in b.as_array().unwrap() {
             value_diff.push(ValueDiff {
                 // TODO: key
-                key: "",
+                key: "".to_string(),
                 value1: ("", "".to_string()),
                 value2: ("", b_item.to_string()),
             });
@@ -124,7 +232,7 @@ fn handle_one_element_null_arrays<'a>(a: &'a Value, b: &'a Value) -> Vec<ValueDi
         for a_item in a.as_array().unwrap() {
             value_diff.push(ValueDiff {
                 // TODO: key
-                key: "",
+                key: "".to_string(),
                 value1: ("", a_item.to_string()),
                 value2: ("", "".to_string()),
             });
@@ -135,86 +243,74 @@ fn handle_one_element_null_arrays<'a>(a: &'a Value, b: &'a Value) -> Vec<ValueDi
 }
 
 fn handle_one_element_null_objects<'a>(
-    a: &'a Value,
-    b: &'a Value,
+    a: Value,
+    b: Value,
 ) -> (Vec<KeyDiff<'a>>, Vec<TypeDiff<'a>>, Vec<ValueDiff<'a>>) {
     let mut key_diff = vec![];
     let mut type_diff = vec![];
     let mut value_diff = vec![];
 
-    if a.is_null() {
-        // b is always an object at this point, because this function is only called from the appropriate match case
-        for (b_key, b_value) in b.as_object().unwrap().iter() {
-            key_diff.push(KeyDiff {
-                key: b_key,
-                // TODO: use file names instead
-                has: "b",
-                misses: "a",
-            });
-
-            type_diff.push(TypeDiff {
-                key: b_key,
-                type1: ("", ""),
-                type2: ("", get_type(b_value)),
-            });
-
-            value_diff.push(ValueDiff {
-                key: &b_key,
-                value1: ("", "".to_string()),
-                value2: ("", b_value.to_string()),
-            });
-        }
+    let object = if a.is_null() {
+        b.as_object().unwrap()
     } else {
-        // b is always an object at this point, because this function is only called from the appropriate match case
-        for (a_key, a_value) in a.as_object().unwrap().iter() {
-            key_diff.push(KeyDiff {
-                key: a_key,
-                // TODO: use file names instead
-                has: "a",
-                misses: "b",
-            });
+        a.as_object().unwrap()
+    };
 
-            type_diff.push(TypeDiff {
-                key: a_key,
-                type1: ("", ""),
-                type2: ("", get_type(a_value)),
-            });
+    for (key, value) in object.iter() {
+        key_diff.push(KeyDiff {
+            key: key.to_string(),
+            has: if a.is_null() { "b" } else { "a" },
+            misses: if a.is_null() { "a" } else { "b" },
+        });
 
-            value_diff.push(ValueDiff {
-                key: &a_key,
-                value1: ("", a_value.to_string()),
-                value2: ("", "".to_string()),
-            });
-        }
+        type_diff.push(TypeDiff {
+            key: key.to_string(),
+            type1: ("", "".to_string()),
+            type2: ("", get_type(value)),
+        });
+
+        value_diff.push(ValueDiff {
+            key: key.to_string(),
+            value1: if a.is_null() {
+                ("", "".to_string())
+            } else {
+                ("", value.to_string())
+            },
+            value2: if a.is_null() {
+                ("", value.to_string())
+            } else {
+                ("", "".to_string())
+            },
+        });
     }
 
     (key_diff, type_diff, value_diff)
 }
 
-fn handle_different_types<'a>(a: &'a Value, b: &'a Value) -> Vec<TypeDiff<'a>> {
+fn handle_different_types<'a>(a: Value, b: Value) -> Vec<TypeDiff<'a>> {
     vec![TypeDiff {
         // TODO: key
-        key: "",
-        type1: ("", get_type(a)),
-        type2: ("", get_type(b)),
+        key: "".to_string(),
+        type1: ("", get_type(&a)),
+        type2: ("", get_type(&b)),
     }]
 }
 
-fn get_type<'a>(value: &'a Value) -> &'a str {
+fn get_type(value: &Value) -> String {
     if value.is_null() {
-        return "null";
+        return "null".to_string();
     } else if value.is_boolean() {
-        return "bool";
+        return "bool".to_string();
     } else if value.is_number() {
-        return "number";
+        return "number".to_string();
     } else if value.is_string() {
-        return "string";
+        return "string".to_string();
     } else if value.is_array() {
-        return "array";
+        return "array".to_string();
     } else if value.is_object() {
-        return "object";
+        return "object".to_string();
     } else {
-        "unknown type"
+        "unknown type".to_string()
     }
 }
 
@@ -250,7 +346,7 @@ fn compare_objects<'a>(
             value_diff.append(&mut item_value_diff);
         } else {
             key_diff.push(KeyDiff {
-                key: a_key,
+                key: a_key.to_string(),
                 // TODO: use file names instead
                 has: "a",
                 misses: "b",
@@ -267,7 +363,7 @@ fn compare_primitives<'a, T: PartialEq + Display>(a: &'a T, b: &'a T) -> Vec<Val
     if !a.eq(b) {
         value_diff.push(ValueDiff {
             // TODO: add key
-            key: "",
+            key: "".to_string(),
             value1: ("", a.to_string()),
             value2: ("", b.to_string()),
         });
