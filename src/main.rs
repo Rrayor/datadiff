@@ -341,6 +341,183 @@ fn compare_objects<'a>(
     for (a_key, a_value) in a.iter() {
         //Comparing keys
         if let Some(b_value) = b.get(a_key) {
+            match(a_value, b_value) {
+                // Primitives of same type
+                (Value::Null, Value::Null) => (vec![], vec![], vec![]),
+                (Value::String(a_value), Value::String(b_value)) =>
+                    (vec![], vec![], compare_primitives(a_value, b_value)),
+                (Value::Number(a_value), Value::Number(b_value)) =>
+                    (vec![], vec![], compare_primitives(a_value, b_value)),
+                (Value::Bool(a_value), Value::Bool(b_value)) => 
+                    (vec![], vec![], compare_primitives(a_value, b_value)),
+
+                // Composites of same type
+                (Value::Array(a_value), Value::Array(b_value)) =>
+                    (vec![], vec![], compare_arrays(a_value, b_value)),
+                (Value::Object(a_value), Value::Object(b_value)) =>
+                    compare_objects(a_value, b_value),
+
+                // One value is null primitives
+                (Value::Null, Value::String(b_value)) => (
+                    vec![],
+                    vec![],
+                    handle_one_element_null_primitives(a_value.clone(), json!(b_value).to_owned())
+                ),
+                (Value::Null, Value::Number(b_value)) => (
+                    vec![],
+                    vec![],
+                    handle_one_element_null_primitives(a_value.clone(), json!(b_value).to_owned())
+                ),
+                (Value::Null, Value::Bool(b_value)) => (
+                    vec![],
+                    vec![],
+                    handle_one_element_null_primitives(a_value.clone(), json!(b_value).to_owned())
+                ),
+                
+                (Value::String(a_value), Value::Null) => (
+                    vec![],
+                    vec![],
+                    handle_one_element_null_primitives(json!(a_value).to_owned(), b_value.clone())
+                ),
+                (Value::Number(a_value), Value::Null) => (
+                    vec![],
+                    vec![],
+                    handle_one_element_null_primitives(json!(a_value).to_owned(), b_value.clone())
+                ),
+                (Value::Bool(a_value), Value::Null) => (
+                    vec![],
+                    vec![],
+                    handle_one_element_null_primitives(json!(a_value).to_owned(), b_value.clone())
+                ),
+
+                // One value is null, composites
+                (Value::Null, Value::Array(b_value)) => (
+                    vec![],
+                    vec![],
+                    handle_one_element_null_arrays(a_value.clone(), json!(b_value).to_owned())
+                ),
+                (Value::Null, Value::Object(b_value)) => 
+                    handle_one_element_null_objects(a_value.clone(), json!(b_value).to_owned()),
+                
+                (Value::Array(a_value), Value::Null) => (
+                    vec![],
+                    vec![],
+                    handle_one_element_null_arrays(json!(a_value).to_owned(), b_value.clone())
+                ),
+                (Value::Object(a_value), Value::Null) => 
+                    handle_one_element_null_objects(json!(a_value).to_owned(), b_value.clone()),
+
+                // Type difference a: string
+                (Value::String(a_value), Value::Number(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::String(a_value), Value::Bool(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::String(a_value), Value::Array(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::String(a_value), Value::Object(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                
+                // Type difference a: number
+                (Value::Number(a_value), Value::String(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Number(a_value), Value::Bool(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Number(a_value), Value::Array(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Number(a_value), Value::Object(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+            
+                // Type difference a: bool
+                (Value::Bool(a_value), Value::String(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Bool(a_value), Value::Number(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Bool(a_value), Value::Array(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Bool(a_value), Value::Object(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+
+                // Type difference a: array
+                (Value::Array(a_value), Value::String(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Array(a_value), Value::Bool(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Array(a_value), Value::Number(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Array(a_value), Value::Object(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                
+                // Type difference a: object
+                (Value::Object(a_value), Value::String(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Object(a_value), Value::Bool(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Object(a_value), Value::Array(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                ),
+                (Value::Object(a_value), Value::Number(b_value)) => (
+                    vec![],
+                    handle_different_types(json!(a_value).to_owned(), json!(b_value).to_owned()),
+                    vec![]
+                )
+            };
+
             // Comparing values
             let mut item_value_diff = compare_primitives(a_value, b_value);
             value_diff.append(&mut item_value_diff);
