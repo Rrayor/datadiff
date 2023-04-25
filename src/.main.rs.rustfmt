@@ -181,7 +181,7 @@ fn compare_objects<'a>(
     for (a_key, a_value) in a.iter() {
         //Comparing keys
         if let Some(b_value) = b.get(a_key) {
-            let (mut field_key_diff, mut field_type_diff, mut field_value_diff) = compare_field(a_value, b_value); 
+            let (mut field_key_diff, mut field_type_diff, mut field_value_diff) = j
 
             key_diff.append(&mut field_key_diff);
             type_diff.append(&mut field_type_diff);
