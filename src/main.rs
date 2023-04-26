@@ -1,8 +1,9 @@
-use serde_json::{json, Map, Number, Result, Value};
-use std::fmt::Display;
+use serde_json::{json, Map, Result, Value};
+use std::fmt::{format, Display};
 use std::fs::File;
 use std::io::BufReader;
 
+#[derive(Copy, Clone)]
 enum ArrayDiffDesc {
     AHas,
     AMisses,
@@ -50,7 +51,9 @@ impl ArrayDiff {
     fn get_formatted_string(&self) -> String {
         format!(
             "\nArray diff: key: {}, Description: {}, value: {}\n",
-            self.key, self.descriptor, self.value
+            self.key,
+            get_array_diff_descriptor_str(self.descriptor),
+            self.value
         )
     }
 }
@@ -70,12 +73,14 @@ impl TypeDiff {
     }
 }
 
+type ComparisionResult = (Vec<KeyDiff>, Vec<TypeDiff>, Vec<ValueDiff>, Vec<ArrayDiff>);
+
 fn main() -> Result<()> {
     let file_name1 = "test_data/person3.json";
     let file_name2 = "test_data/person4.json";
     let data1 = read_json_file(file_name1)?;
     let data2 = read_json_file(file_name2)?;
-    let (key_diff, type_diff, value_diff) = compare_objects(
+    let (key_diff, type_diff, value_diff, array_diff) = compare_objects(
         file_name1.to_string(),
         file_name2.to_string(),
         &data1,
@@ -93,6 +98,11 @@ fn main() -> Result<()> {
     for ele in value_diff {
         print!("{}", ele.get_formatted_string());
     }
+
+    for ele in array_diff {
+        print!("{}", ele.get_formatted_string());
+    }
+
     Ok(())
 }
 
@@ -119,36 +129,33 @@ fn handle_one_element_null_primitives<'a>(key: &'a str, a: Value, b: Value) -> V
     }
 }
 
-fn handle_one_element_null_arrays<'a>(key: &'a str, a: Value, b: Value) -> Vec<ValueDiff> {
-    let mut value_diff = vec![];
+fn handle_one_element_null_arrays<'a>(key: &'a str, a: Value, b: Value) -> Vec<ArrayDiff> {
+    let mut array_diff = vec![];
 
     if a.is_null() {
         // b should always be an array, because the function is called from the appropriate match arm
         for b_item in b.as_array().unwrap() {
-            value_diff.push(ValueDiff {
+            array_diff.push(ArrayDiff {
                 key: key.to_string(),
-                value1: "".to_string(),
-                value2: b_item.to_string(),
+                descriptor: ArrayDiffDesc::BHas,
+                value: b_item.to_string(),
             });
         }
     } else {
         // a should always be an array, because the function is called from the appropriate match arm
         for a_item in a.as_array().unwrap() {
-            value_diff.push(ValueDiff {
+            array_diff.push(ArrayDiff {
                 key: key.to_string(),
-                value1: a_item.to_string(),
-                value2: "".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: a_item.to_string(),
             });
         }
     }
 
-    value_diff
+    array_diff
 }
 
-fn handle_one_element_null_objects<'a>(
-    a: Value,
-    b: Value,
-) -> (Vec<KeyDiff>, Vec<TypeDiff>, Vec<ValueDiff>) {
+fn handle_one_element_null_objects<'a>(a: Value, b: Value) -> ComparisionResult {
     let mut key_diff = vec![];
     let mut type_diff = vec![];
     let mut value_diff = vec![];
@@ -195,7 +202,7 @@ fn handle_one_element_null_objects<'a>(
         });
     }
 
-    (key_diff, type_diff, value_diff)
+    (key_diff, type_diff, value_diff, vec![]) // TODO: handle arrays here?
 }
 
 fn handle_different_types<'a>(key: &'a str, a: Value, b: Value) -> Vec<TypeDiff> {
@@ -224,11 +231,9 @@ fn get_type(value: &Value) -> String {
     }
 }
 
-fn compare_arrays<'a>(
-    key: &'a str,
-    a: &'a Vec<Value>,
-    b: &'a Vec<Value>,
-) -> (Vec<ArrayDiff>, Vec<ValueDiff>) {
+fn compare_arrays<'a>(key: &'a str, a: &'a Vec<Value>, b: &'a Vec<Value>) -> ComparisionResult {
+    let mut key_diff = vec![];
+    let mut type_diff = vec![];
     let mut value_diff = vec![];
     let mut array_diff: Vec<ArrayDiff> = vec![];
     let same_order = true; // TODO: this should be configurable
@@ -236,8 +241,21 @@ fn compare_arrays<'a>(
     if a.len() == b.len() {
         if same_order {
             for (i, a_item) in a.iter().enumerate() {
-                let mut item_value_diff = compare_primitives(key, a_item, &b[i]);
+                let (
+                    mut item_key_diff,
+                    mut item_type_diff,
+                    mut item_value_diff,
+                    mut item_array_diff,
+                ) = compare_field(
+                    format!("{}[{}]", key.to_string(), i.to_string()),
+                    a_item,
+                    &b[i],
+                );
+
+                key_diff.append(&mut item_key_diff);
+                type_diff.append(&mut item_type_diff);
                 value_diff.append(&mut item_value_diff);
+                array_diff.append(&mut item_array_diff);
             }
         } else {
             array_diff = handle_different_order_arrays(a, b, key);
@@ -246,7 +264,7 @@ fn compare_arrays<'a>(
         array_diff = handle_different_order_arrays(a, b, key);
     }
 
-    (array_diff, value_diff)
+    (key_diff, type_diff, value_diff, array_diff)
 }
 
 fn handle_different_order_arrays(a: &Vec<Value>, b: &Vec<Value>, key: &str) -> Vec<ArrayDiff> {
@@ -295,36 +313,23 @@ fn fill_diff_vectors<'a, T: PartialEq + Display>(
     let mut a_has = vec![];
     let mut a_misses = vec![];
     let mut b_has = vec![];
+    let mut b_misses = vec![];
 
     for item in a {
-        if b.contains(item) {
+        if !b.contains(item) {
             a_has.push(item);
-        } else {
-            a_misses.push(item);
+            b_misses.push(item);
         }
     }
 
     for item in b {
         if !a.contains(item) {
             b_has.push(item);
+            a_misses.push(item);
         }
     }
 
-    let mut a_misses_out = vec![];
-    for item in &a_misses {
-        if !b.contains(item) {
-            a_misses_out.push(item.to_owned());
-        }
-    }
-
-    let mut b_misses_out = vec![];
-    for item in &b_has {
-        if !a.contains(item) {
-            b_misses_out.push(item.to_owned());
-        }
-    }
-
-    (a_has, a_misses_out, b_has, b_misses_out)
+    (a_has, a_misses, b_has, b_misses)
 }
 
 fn compare_objects<'a>(
@@ -332,10 +337,11 @@ fn compare_objects<'a>(
     b_name: String,
     a: &'a Map<String, Value>,
     b: &'a Map<String, Value>,
-) -> (Vec<KeyDiff>, Vec<TypeDiff>, Vec<ValueDiff>) {
+) -> ComparisionResult {
     let mut key_diff = vec![];
     let mut type_diff = vec![];
     let mut value_diff = vec![];
+    let mut array_diff = vec![];
 
     for (a_key, a_value) in a.iter() {
         //Comparing keys
@@ -346,12 +352,17 @@ fn compare_objects<'a>(
             } else {
                 format!("{}.{}", key_start, a_key)
             };
-            let (mut field_key_diff, mut field_type_diff, mut field_value_diff) =
-                compare_field(key, a_value, b_value);
+            let (
+                mut field_key_diff,
+                mut field_type_diff,
+                mut field_value_diff,
+                mut field_array_diff,
+            ) = compare_field(key, a_value, b_value);
 
             key_diff.append(&mut field_key_diff);
             type_diff.append(&mut field_type_diff);
             value_diff.append(&mut field_value_diff);
+            array_diff.append(&mut field_array_diff);
         } else {
             key_diff.push(KeyDiff {
                 key: a_key.to_string(),
@@ -361,39 +372,36 @@ fn compare_objects<'a>(
         }
     }
 
-    (key_diff, type_diff, value_diff)
+    (key_diff, type_diff, value_diff, array_diff)
 }
 
-fn compare_field<'a>(
-    key: String,
-    a_value: &'a Value,
-    b_value: &'a Value,
-) -> (Vec<KeyDiff>, Vec<TypeDiff>, Vec<ValueDiff>) {
+fn compare_field<'a>(key: String, a_value: &'a Value, b_value: &'a Value) -> ComparisionResult {
     match (a_value, b_value) {
         // Primitives of same type
-        (Value::Null, Value::Null) => (vec![], vec![], vec![]),
+        (Value::Null, Value::Null) => (vec![], vec![], vec![], vec![]),
         (Value::String(a_value), Value::String(b_value)) => (
             vec![],
             vec![],
             compare_primitives(key.as_str(), a_value, b_value),
+            vec![],
         ),
         (Value::Number(a_value), Value::Number(b_value)) => (
             vec![],
             vec![],
             compare_primitives(key.as_str(), a_value, b_value),
+            vec![],
         ),
         (Value::Bool(a_value), Value::Bool(b_value)) => (
             vec![],
             vec![],
             compare_primitives(key.as_str(), a_value, b_value),
+            vec![],
         ),
 
         // Composites of same type
-        (Value::Array(a_value), Value::Array(b_value)) => (
-            vec![],
-            vec![],
-            compare_arrays(key.as_str(), a_value, b_value),
-        ),
+        (Value::Array(a_value), Value::Array(b_value)) => {
+            compare_arrays(key.as_str(), a_value, b_value)
+        }
         (Value::Object(a_value), Value::Object(b_value)) => {
             compare_objects(key.clone(), key, a_value, b_value)
         }
@@ -407,6 +415,7 @@ fn compare_field<'a>(
                 a_value.clone(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
         ),
         (Value::Null, Value::Number(b_value)) => (
             vec![],
@@ -416,6 +425,7 @@ fn compare_field<'a>(
                 a_value.clone(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
         ),
         (Value::Null, Value::Bool(b_value)) => (
             vec![],
@@ -425,6 +435,7 @@ fn compare_field<'a>(
                 a_value.clone(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
         ),
 
         (Value::String(a_value), Value::Null) => (
@@ -435,6 +446,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 b_value.clone(),
             ),
+            vec![],
         ),
         (Value::Number(a_value), Value::Null) => (
             vec![],
@@ -444,6 +456,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 b_value.clone(),
             ),
+            vec![],
         ),
         (Value::Bool(a_value), Value::Null) => (
             vec![],
@@ -453,10 +466,12 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 b_value.clone(),
             ),
+            vec![],
         ),
 
         // One value is null, composites
         (Value::Null, Value::Array(b_value)) => (
+            vec![],
             vec![],
             vec![],
             handle_one_element_null_arrays(
@@ -470,6 +485,7 @@ fn compare_field<'a>(
         }
 
         (Value::Array(a_value), Value::Null) => (
+            vec![],
             vec![],
             vec![],
             handle_one_element_null_arrays(
@@ -491,6 +507,7 @@ fn compare_field<'a>(
                 json!(b_value).to_owned(),
             ),
             vec![],
+            vec![],
         ),
         (Value::String(a_value), Value::Bool(b_value)) => (
             vec![],
@@ -499,6 +516,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
             vec![],
         ),
         (Value::String(a_value), Value::Array(b_value)) => (
@@ -509,6 +527,7 @@ fn compare_field<'a>(
                 json!(b_value).to_owned(),
             ),
             vec![],
+            vec![],
         ),
         (Value::String(a_value), Value::Object(b_value)) => (
             vec![],
@@ -517,6 +536,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
             vec![],
         ),
 
@@ -529,6 +549,7 @@ fn compare_field<'a>(
                 json!(b_value).to_owned(),
             ),
             vec![],
+            vec![],
         ),
         (Value::Number(a_value), Value::Bool(b_value)) => (
             vec![],
@@ -537,6 +558,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
             vec![],
         ),
         (Value::Number(a_value), Value::Array(b_value)) => (
@@ -547,6 +569,7 @@ fn compare_field<'a>(
                 json!(b_value).to_owned(),
             ),
             vec![],
+            vec![],
         ),
         (Value::Number(a_value), Value::Object(b_value)) => (
             vec![],
@@ -555,6 +578,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
             vec![],
         ),
 
@@ -567,6 +591,7 @@ fn compare_field<'a>(
                 json!(b_value).to_owned(),
             ),
             vec![],
+            vec![],
         ),
         (Value::Bool(a_value), Value::Number(b_value)) => (
             vec![],
@@ -575,6 +600,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
             vec![],
         ),
         (Value::Bool(a_value), Value::Array(b_value)) => (
@@ -585,6 +611,7 @@ fn compare_field<'a>(
                 json!(b_value).to_owned(),
             ),
             vec![],
+            vec![],
         ),
         (Value::Bool(a_value), Value::Object(b_value)) => (
             vec![],
@@ -593,6 +620,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
             vec![],
         ),
 
@@ -605,6 +633,7 @@ fn compare_field<'a>(
                 json!(b_value).to_owned(),
             ),
             vec![],
+            vec![],
         ),
         (Value::Array(a_value), Value::Bool(b_value)) => (
             vec![],
@@ -613,6 +642,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
             vec![],
         ),
         (Value::Array(a_value), Value::Number(b_value)) => (
@@ -623,6 +653,7 @@ fn compare_field<'a>(
                 json!(b_value).to_owned(),
             ),
             vec![],
+            vec![],
         ),
         (Value::Array(a_value), Value::Object(b_value)) => (
             vec![],
@@ -631,6 +662,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
             vec![],
         ),
 
@@ -643,6 +675,7 @@ fn compare_field<'a>(
                 json!(b_value).to_owned(),
             ),
             vec![],
+            vec![],
         ),
         (Value::Object(a_value), Value::Bool(b_value)) => (
             vec![],
@@ -651,6 +684,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
             vec![],
         ),
         (Value::Object(a_value), Value::Array(b_value)) => (
@@ -661,6 +695,7 @@ fn compare_field<'a>(
                 json!(b_value).to_owned(),
             ),
             vec![],
+            vec![],
         ),
         (Value::Object(a_value), Value::Number(b_value)) => (
             vec![],
@@ -669,6 +704,7 @@ fn compare_field<'a>(
                 json!(a_value).to_owned(),
                 json!(b_value).to_owned(),
             ),
+            vec![],
             vec![],
         ),
     }
@@ -697,6 +733,6 @@ fn get_array_diff_descriptor_str(diff_desc: ArrayDiffDesc) -> String {
         ArrayDiffDesc::AHas => "a has".to_string(),
         ArrayDiffDesc::AMisses => "a misses".to_string(),
         ArrayDiffDesc::BHas => "b has".to_string(),
-        ArrayDiffDesc::BMisses => "b_misses".to_string(),
+        ArrayDiffDesc::BMisses => "b misses".to_string(),
     }
 }
