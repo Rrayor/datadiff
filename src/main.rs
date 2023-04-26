@@ -33,6 +33,25 @@ impl ValueDiff {
     }
 }
 
+struct ArrayDiff {
+    key: String,
+    a_has: Vec<String>,
+    a_misses: Vec<String>,
+    b_has: Vec<String>,
+    b_misses: Vec<String>,
+}
+
+impl ArrayDiff {
+    fn get_formatted_string(&self) -> String {
+        format!(
+            "\nArray diff: key: {}, a misses: [ {} ], b misses: [ {} ]\n",
+            self.key,
+            self.a_misses.join(", "),
+            self.b_misses.join(", ")
+        )
+    }
+}
+
 struct TypeDiff {
     key: String,
     type1: String,
@@ -207,6 +226,15 @@ fn get_type(value: &Value) -> String {
 //  Basically this needs a complete rewrite
 fn compare_arrays<'a>(key: &'a str, a: &'a Vec<Value>, b: &'a Vec<Value>) -> Vec<ValueDiff> {
     let mut value_diff = vec![];
+
+    // Check if the arrays are the same size
+    // --If yes
+    // ----If order is important
+    // ------check items for equality
+    // ----else
+    // ------check if there are items in a that are not present in b and reverse
+    // --else
+    // ----check if there are items in a that are not present in b and reverse
 
     // TODO: Array checking should be configurable if order matters or not or even if they should be checked
     for (i, a_item) in a.iter().enumerate() {
