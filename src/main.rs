@@ -3,6 +3,13 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::BufReader;
 
+enum ArrayDiffDesc {
+    AHas,
+    AMisses,
+    BHas,
+    BMisses,
+}
+
 struct KeyDiff {
     key: String,
     has: String,
@@ -35,19 +42,15 @@ impl ValueDiff {
 
 struct ArrayDiff {
     key: String,
-    a_has: Vec<String>,
-    a_misses: Vec<String>,
-    b_has: Vec<String>,
-    b_misses: Vec<String>,
+    descriptor: ArrayDiffDesc,
+    value: String,
 }
 
 impl ArrayDiff {
     fn get_formatted_string(&self) -> String {
         format!(
-            "\nArray diff: key: {}, a misses: [ {} ], b misses: [ {} ]\n",
-            self.key,
-            self.a_misses.join(", "),
-            self.b_misses.join(", ")
+            "\nArray diff: key: {}, Description: {}, value: {}\n",
+            self.key, self.descriptor, self.value
         )
     }
 }
@@ -221,36 +224,107 @@ fn get_type(value: &Value) -> String {
     }
 }
 
-// TODO: This solution only works if the array are the same size and in the same order
-//  It should also cover the cases when one or the other is larger or not in the same order
-//  Basically this needs a complete rewrite
-fn compare_arrays<'a>(key: &'a str, a: &'a Vec<Value>, b: &'a Vec<Value>) -> Vec<ValueDiff> {
+fn compare_arrays<'a>(
+    key: &'a str,
+    a: &'a Vec<Value>,
+    b: &'a Vec<Value>,
+) -> (Vec<ArrayDiff>, Vec<ValueDiff>) {
     let mut value_diff = vec![];
+    let mut array_diff: Vec<ArrayDiff> = vec![];
+    let same_order = true; // TODO: this should be configurable
 
-    // Check if the arrays are the same size
-    // --If yes
-    // ----If order is important
-    // ------check items for equality
-    // ----else
-    // ------check if there are items in a that are not present in b and reverse
-    // --else
-    // ----check if there are items in a that are not present in b and reverse
-
-    // TODO: Array checking should be configurable if order matters or not or even if they should be checked
-    for (i, a_item) in a.iter().enumerate() {
-        if b.get(i).is_none() {
-            value_diff.push(ValueDiff {
-                key: key.to_string(),
-                value1: "different array".to_string(),
-                value2: "different array".to_string(),
-            });
+    if a.len() == b.len() {
+        if same_order {
+            for (i, a_item) in a.iter().enumerate() {
+                let mut item_value_diff = compare_primitives(key, a_item, &b[i]);
+                value_diff.append(&mut item_value_diff);
+            }
         } else {
-            let mut item_value_diff = compare_primitives(key, a_item, &b[i]);
-            value_diff.append(&mut item_value_diff);
+            array_diff = handle_different_order_arrays(a, b, key);
+        }
+    } else {
+        array_diff = handle_different_order_arrays(a, b, key);
+    }
+
+    (array_diff, value_diff)
+}
+
+fn handle_different_order_arrays(a: &Vec<Value>, b: &Vec<Value>, key: &str) -> Vec<ArrayDiff> {
+    let mut array_diff = vec![];
+
+    let (a_has, a_misses, b_has, b_misses) = fill_diff_vectors(a, b);
+    for ah in a_has.iter() {
+        array_diff.push(ArrayDiff {
+            key: key.to_string(),
+            descriptor: ArrayDiffDesc::AHas,
+            value: ah.to_string(),
+        });
+    }
+
+    for am in a_misses.iter() {
+        array_diff.push(ArrayDiff {
+            key: key.to_string(),
+            descriptor: ArrayDiffDesc::AMisses,
+            value: am.to_string(),
+        });
+    }
+
+    for bh in b_has.iter() {
+        array_diff.push(ArrayDiff {
+            key: key.to_string(),
+            descriptor: ArrayDiffDesc::BHas,
+            value: bh.to_string(),
+        });
+    }
+
+    for bm in b_misses.iter() {
+        array_diff.push(ArrayDiff {
+            key: key.to_string(),
+            descriptor: ArrayDiffDesc::BMisses,
+            value: bm.to_string(),
+        });
+    }
+
+    array_diff
+}
+
+fn fill_diff_vectors<'a, T: PartialEq + Display>(
+    a: &'a [T],
+    b: &'a [T],
+) -> (Vec<&'a T>, Vec<&'a T>, Vec<&'a T>, Vec<&'a T>) {
+    let mut a_has = vec![];
+    let mut a_misses = vec![];
+    let mut b_has = vec![];
+
+    for item in a {
+        if b.contains(item) {
+            a_has.push(item);
+        } else {
+            a_misses.push(item);
         }
     }
 
-    value_diff
+    for item in b {
+        if !a.contains(item) {
+            b_has.push(item);
+        }
+    }
+
+    let mut a_misses_out = vec![];
+    for item in &a_misses {
+        if !b.contains(item) {
+            a_misses_out.push(item.to_owned());
+        }
+    }
+
+    let mut b_misses_out = vec![];
+    for item in &b_has {
+        if !a.contains(item) {
+            b_misses_out.push(item.to_owned());
+        }
+    }
+
+    (a_has, a_misses_out, b_has, b_misses_out)
 }
 
 fn compare_objects<'a>(
@@ -616,4 +690,13 @@ fn compare_primitives<'a, T: PartialEq + Display>(
     }
 
     value_diff
+}
+
+fn get_array_diff_descriptor_str(diff_desc: ArrayDiffDesc) -> String {
+    match diff_desc {
+        ArrayDiffDesc::AHas => "a has".to_string(),
+        ArrayDiffDesc::AMisses => "a misses".to_string(),
+        ArrayDiffDesc::BHas => "b has".to_string(),
+        ArrayDiffDesc::BMisses => "b_misses".to_string(),
+    }
 }
