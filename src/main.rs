@@ -1,5 +1,5 @@
 use serde_json::{json, Map, Result, Value};
-use std::fmt::{format, Display};
+use std::fmt::Display;
 use std::fs::File;
 use std::io::BufReader;
 
@@ -9,6 +9,15 @@ enum ArrayDiffDesc {
     AMisses,
     BHas,
     BMisses,
+}
+
+struct WorkingFile {
+    name: String,
+}
+
+struct WorkingContext {
+    file_a: WorkingFile,
+    file_b: WorkingFile,
 }
 
 struct KeyDiff {
@@ -48,11 +57,11 @@ struct ArrayDiff {
 }
 
 impl ArrayDiff {
-    fn get_formatted_string(&self) -> String {
+    fn get_formatted_string(&self, working_context: &WorkingContext) -> String {
         format!(
             "\nArray diff: key: {}, Description: {}, value: {}\n",
             self.key,
-            get_array_diff_descriptor_str(self.descriptor),
+            get_array_diff_descriptor_str(self.descriptor, working_context),
             self.value
         )
     }
@@ -80,12 +89,16 @@ fn main() -> Result<()> {
     let file_name2 = "test_data/person4.json";
     let data1 = read_json_file(file_name1)?;
     let data2 = read_json_file(file_name2)?;
-    let (key_diff, type_diff, value_diff, array_diff) = compare_objects(
-        file_name1.to_string(),
-        file_name2.to_string(),
-        &data1,
-        &data2,
-    );
+    let working_context = WorkingContext {
+        file_a: WorkingFile {
+            name: file_name1.to_string(),
+        },
+        file_b: WorkingFile {
+            name: file_name2.to_string(),
+        },
+    };
+    let (key_diff, type_diff, value_diff, array_diff) =
+        compare_objects("".to_string(), &data1, &data2, &working_context);
 
     for ele in key_diff {
         print!("{}", ele.get_formatted_string());
@@ -100,7 +113,7 @@ fn main() -> Result<()> {
     }
 
     for ele in array_diff {
-        print!("{}", ele.get_formatted_string());
+        print!("{}", ele.get_formatted_string(&working_context));
     }
 
     Ok(())
@@ -155,7 +168,12 @@ fn handle_one_element_null_arrays<'a>(key: &'a str, a: Value, b: Value) -> Vec<A
     array_diff
 }
 
-fn handle_one_element_null_objects<'a>(a: Value, b: Value) -> ComparisionResult {
+fn handle_one_element_null_objects<'a>(
+    parent_key: String,
+    a: Value,
+    b: Value,
+    working_context: &WorkingContext,
+) -> ComparisionResult {
     let mut key_diff = vec![];
     let mut type_diff = vec![];
     let mut value_diff = vec![];
@@ -167,17 +185,22 @@ fn handle_one_element_null_objects<'a>(a: Value, b: Value) -> ComparisionResult 
     };
 
     for (key, value) in object.iter() {
+        let full_key = if parent_key.is_empty() {
+            key.clone()
+        } else {
+            format!("{}.{}", parent_key, key)
+        };
         key_diff.push(KeyDiff {
-            key: key.to_string(),
+            key: full_key,
             has: if a.is_null() {
-                "b".to_string()
+                working_context.file_b.name.clone()
             } else {
-                "a".to_string()
+                working_context.file_a.name.clone()
             },
             misses: if a.is_null() {
-                "a".to_string()
+                working_context.file_a.name.clone()
             } else {
-                "b".to_string()
+                working_context.file_b.name.clone()
             },
         });
 
@@ -231,12 +254,17 @@ fn get_type(value: &Value) -> String {
     }
 }
 
-fn compare_arrays<'a>(key: &'a str, a: &'a Vec<Value>, b: &'a Vec<Value>) -> ComparisionResult {
+fn compare_arrays<'a>(
+    key: &'a str,
+    a: &'a Vec<Value>,
+    b: &'a Vec<Value>,
+    working_context: &WorkingContext,
+) -> ComparisionResult {
     let mut key_diff = vec![];
     let mut type_diff = vec![];
     let mut value_diff = vec![];
     let mut array_diff: Vec<ArrayDiff> = vec![];
-    let same_order = true; // TODO: this should be configurable
+    let same_order = false; // TODO: this should be configurable
 
     if a.len() == b.len() {
         if same_order {
@@ -250,6 +278,7 @@ fn compare_arrays<'a>(key: &'a str, a: &'a Vec<Value>, b: &'a Vec<Value>) -> Com
                     format!("{}[{}]", key.to_string(), i.to_string()),
                     a_item,
                     &b[i],
+                    working_context,
                 );
 
                 key_diff.append(&mut item_key_diff);
@@ -333,10 +362,10 @@ fn fill_diff_vectors<'a, T: PartialEq + Display>(
 }
 
 fn compare_objects<'a>(
-    a_name: String,
-    b_name: String,
+    key_in: String,
     a: &'a Map<String, Value>,
     b: &'a Map<String, Value>,
+    working_context: &WorkingContext,
 ) -> ComparisionResult {
     let mut key_diff = vec![];
     let mut type_diff = vec![];
@@ -344,20 +373,19 @@ fn compare_objects<'a>(
     let mut array_diff = vec![];
 
     for (a_key, a_value) in a.iter() {
+        let key = if key_in.is_empty() {
+            a_key.to_string()
+        } else {
+            format!("{}.{}", key_in, a_key)
+        };
         //Comparing keys
         if let Some(b_value) = b.get(a_key) {
-            let key_start = a_name.split("json").last().unwrap_or("");
-            let key = if key_start.is_empty() {
-                a_key.to_string()
-            } else {
-                format!("{}.{}", key_start, a_key)
-            };
             let (
                 mut field_key_diff,
                 mut field_type_diff,
                 mut field_value_diff,
                 mut field_array_diff,
-            ) = compare_field(key, a_value, b_value);
+            ) = compare_field(key, a_value, b_value, working_context);
 
             key_diff.append(&mut field_key_diff);
             type_diff.append(&mut field_type_diff);
@@ -365,9 +393,9 @@ fn compare_objects<'a>(
             array_diff.append(&mut field_array_diff);
         } else {
             key_diff.push(KeyDiff {
-                key: a_key.to_string(),
-                has: a_name.to_string(),
-                misses: b_name.to_string(),
+                key: key,
+                has: working_context.file_a.name.clone(),
+                misses: working_context.file_b.name.clone(),
             });
         }
     }
@@ -375,7 +403,12 @@ fn compare_objects<'a>(
     (key_diff, type_diff, value_diff, array_diff)
 }
 
-fn compare_field<'a>(key: String, a_value: &'a Value, b_value: &'a Value) -> ComparisionResult {
+fn compare_field<'a>(
+    key: String,
+    a_value: &'a Value,
+    b_value: &'a Value,
+    working_context: &WorkingContext,
+) -> ComparisionResult {
     match (a_value, b_value) {
         // Primitives of same type
         (Value::Null, Value::Null) => (vec![], vec![], vec![], vec![]),
@@ -400,10 +433,10 @@ fn compare_field<'a>(key: String, a_value: &'a Value, b_value: &'a Value) -> Com
 
         // Composites of same type
         (Value::Array(a_value), Value::Array(b_value)) => {
-            compare_arrays(key.as_str(), a_value, b_value)
+            compare_arrays(key.as_str(), a_value, b_value, working_context)
         }
         (Value::Object(a_value), Value::Object(b_value)) => {
-            compare_objects(key.clone(), key, a_value, b_value)
+            compare_objects(key, a_value, b_value, working_context)
         }
 
         // One value is null primitives
@@ -480,9 +513,12 @@ fn compare_field<'a>(key: String, a_value: &'a Value, b_value: &'a Value) -> Com
                 json!(b_value).to_owned(),
             ),
         ),
-        (Value::Null, Value::Object(b_value)) => {
-            handle_one_element_null_objects(a_value.clone(), json!(b_value).to_owned())
-        }
+        (Value::Null, Value::Object(b_value)) => handle_one_element_null_objects(
+            key,
+            a_value.clone(),
+            json!(b_value).to_owned(),
+            working_context,
+        ),
 
         (Value::Array(a_value), Value::Null) => (
             vec![],
@@ -494,9 +530,12 @@ fn compare_field<'a>(key: String, a_value: &'a Value, b_value: &'a Value) -> Com
                 b_value.clone(),
             ),
         ),
-        (Value::Object(a_value), Value::Null) => {
-            handle_one_element_null_objects(json!(a_value).to_owned(), b_value.clone())
-        }
+        (Value::Object(a_value), Value::Null) => handle_one_element_null_objects(
+            key,
+            json!(a_value).to_owned(),
+            b_value.clone(),
+            working_context,
+        ),
 
         // Type difference a: string
         (Value::String(a_value), Value::Number(b_value)) => (
@@ -728,11 +767,14 @@ fn compare_primitives<'a, T: PartialEq + Display>(
     value_diff
 }
 
-fn get_array_diff_descriptor_str(diff_desc: ArrayDiffDesc) -> String {
+fn get_array_diff_descriptor_str(
+    diff_desc: ArrayDiffDesc,
+    working_context: &WorkingContext,
+) -> String {
     match diff_desc {
-        ArrayDiffDesc::AHas => "a has".to_string(),
-        ArrayDiffDesc::AMisses => "a misses".to_string(),
-        ArrayDiffDesc::BHas => "b has".to_string(),
-        ArrayDiffDesc::BMisses => "b misses".to_string(),
+        ArrayDiffDesc::AHas => format!("{} has", working_context.file_a.name),
+        ArrayDiffDesc::AMisses => format!("{} has", working_context.file_a.name),
+        ArrayDiffDesc::BHas => format!("{} has", working_context.file_b.name),
+        ArrayDiffDesc::BMisses => format!("{} has", working_context.file_b.name),
     }
 }
