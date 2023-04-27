@@ -11,23 +11,23 @@ enum ArrayDiffDesc {
     BMisses,
 }
 
-struct WorkingFile {
-    name: String,
+pub struct WorkingFile {
+    pub name: String,
 }
 
-struct WorkingContext {
-    file_a: WorkingFile,
-    file_b: WorkingFile,
+pub struct WorkingContext {
+    pub file_a: WorkingFile,
+    pub file_b: WorkingFile,
 }
 
-struct KeyDiff {
+pub struct KeyDiff {
     key: String,
     has: String,
     misses: String,
 }
 
 impl KeyDiff {
-    fn get_formatted_string(&self) -> String {
+    pub fn get_formatted_string(&self) -> String {
         format!(
             "\nKey diff: key: {}, has: {}, misses: {}\n",
             self.key, self.has, self.misses
@@ -35,14 +35,14 @@ impl KeyDiff {
     }
 }
 
-struct ValueDiff {
+pub struct ValueDiff {
     key: String,
     value1: String,
     value2: String,
 }
 
 impl ValueDiff {
-    fn get_formatted_string(&self) -> String {
+    pub fn get_formatted_string(&self) -> String {
         format!(
             "\nValue diff: key: {}, value1: {}, value2: {}\n",
             self.key, self.value1, self.value2
@@ -50,14 +50,14 @@ impl ValueDiff {
     }
 }
 
-struct ArrayDiff {
+pub struct ArrayDiff {
     key: String,
     descriptor: ArrayDiffDesc,
     value: String,
 }
 
 impl ArrayDiff {
-    fn get_formatted_string(&self, working_context: &WorkingContext) -> String {
+    pub fn get_formatted_string(&self, working_context: &WorkingContext) -> String {
         format!(
             "\nArray diff: key: {}, Description: {}, value: {}\n",
             self.key,
@@ -67,14 +67,14 @@ impl ArrayDiff {
     }
 }
 
-struct TypeDiff {
+pub struct TypeDiff {
     key: String,
     type1: String,
     type2: String,
 }
 
 impl TypeDiff {
-    fn get_formatted_string(&self) -> String {
+    pub fn get_formatted_string(&self) -> String {
         format!(
             "\nType diff: key: {}, type1: {}, type2: {}\n",
             self.key, self.type1, self.type2
@@ -82,48 +82,55 @@ impl TypeDiff {
     }
 }
 
-type ComparisionResult = (Vec<KeyDiff>, Vec<TypeDiff>, Vec<ValueDiff>, Vec<ArrayDiff>);
+pub type ComparisionResult = (Vec<KeyDiff>, Vec<TypeDiff>, Vec<ValueDiff>, Vec<ArrayDiff>);
 
-fn main() -> Result<()> {
-    let file_name1 = "test_data/person3.json";
-    let file_name2 = "test_data/person4.json";
-    let data1 = read_json_file(file_name1)?;
-    let data2 = read_json_file(file_name2)?;
-    let working_context = WorkingContext {
-        file_a: WorkingFile {
-            name: file_name1.to_string(),
-        },
-        file_b: WorkingFile {
-            name: file_name2.to_string(),
-        },
-    };
-    let (key_diff, type_diff, value_diff, array_diff) =
-        compare_objects("".to_string(), &data1, &data2, &working_context);
-
-    for ele in key_diff {
-        print!("{}", ele.get_formatted_string());
-    }
-
-    for ele in type_diff {
-        print!("{}", ele.get_formatted_string());
-    }
-
-    for ele in value_diff {
-        print!("{}", ele.get_formatted_string());
-    }
-
-    for ele in array_diff {
-        print!("{}", ele.get_formatted_string(&working_context));
-    }
-
-    Ok(())
-}
-
-fn read_json_file(file_path: &str) -> Result<Map<String, Value>> {
+pub fn read_json_file(file_path: &str) -> Result<Map<String, Value>> {
     let file = File::open(file_path).expect(&format!("Could not open file {}", file_path));
     let reader = BufReader::new(file);
     let result = serde_json::from_reader(reader)?;
     Ok(result)
+}
+
+pub fn compare_objects<'a>(
+    key_in: String,
+    a: &'a Map<String, Value>,
+    b: &'a Map<String, Value>,
+    working_context: &WorkingContext,
+) -> ComparisionResult {
+    let mut key_diff = vec![];
+    let mut type_diff = vec![];
+    let mut value_diff = vec![];
+    let mut array_diff = vec![];
+
+    for (a_key, a_value) in a.iter() {
+        let key = if key_in.is_empty() {
+            a_key.to_string()
+        } else {
+            format!("{}.{}", key_in, a_key)
+        };
+        //Comparing keys
+        if let Some(b_value) = b.get(a_key) {
+            let (
+                mut field_key_diff,
+                mut field_type_diff,
+                mut field_value_diff,
+                mut field_array_diff,
+            ) = compare_field(key, a_value, b_value, working_context);
+
+            key_diff.append(&mut field_key_diff);
+            type_diff.append(&mut field_type_diff);
+            value_diff.append(&mut field_value_diff);
+            array_diff.append(&mut field_array_diff);
+        } else {
+            key_diff.push(KeyDiff {
+                key: key,
+                has: working_context.file_a.name.clone(),
+                misses: working_context.file_b.name.clone(),
+            });
+        }
+    }
+
+    (key_diff, type_diff, value_diff, array_diff)
 }
 
 fn handle_one_element_null_primitives<'a>(key: &'a str, a: Value, b: Value) -> Vec<ValueDiff> {
@@ -359,48 +366,6 @@ fn fill_diff_vectors<'a, T: PartialEq + Display>(
     }
 
     (a_has, a_misses, b_has, b_misses)
-}
-
-fn compare_objects<'a>(
-    key_in: String,
-    a: &'a Map<String, Value>,
-    b: &'a Map<String, Value>,
-    working_context: &WorkingContext,
-) -> ComparisionResult {
-    let mut key_diff = vec![];
-    let mut type_diff = vec![];
-    let mut value_diff = vec![];
-    let mut array_diff = vec![];
-
-    for (a_key, a_value) in a.iter() {
-        let key = if key_in.is_empty() {
-            a_key.to_string()
-        } else {
-            format!("{}.{}", key_in, a_key)
-        };
-        //Comparing keys
-        if let Some(b_value) = b.get(a_key) {
-            let (
-                mut field_key_diff,
-                mut field_type_diff,
-                mut field_value_diff,
-                mut field_array_diff,
-            ) = compare_field(key, a_value, b_value, working_context);
-
-            key_diff.append(&mut field_key_diff);
-            type_diff.append(&mut field_type_diff);
-            value_diff.append(&mut field_value_diff);
-            array_diff.append(&mut field_array_diff);
-        } else {
-            key_diff.push(KeyDiff {
-                key: key,
-                has: working_context.file_a.name.clone(),
-                misses: working_context.file_b.name.clone(),
-            });
-        }
-    }
-
-    (key_diff, type_diff, value_diff, array_diff)
 }
 
 fn compare_field<'a>(
