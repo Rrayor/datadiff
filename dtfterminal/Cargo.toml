@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 libdtf = { path = "../libdtf" }
+term-table = "1.3.2"
+colored = "2.0.0"
