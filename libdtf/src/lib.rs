@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::BufReader;
 
 #[derive(Copy, Clone)]
-enum ArrayDiffDesc {
+pub enum ArrayDiffDesc {
     AHas,
     AMisses,
     BHas,
@@ -21,9 +21,9 @@ pub struct WorkingContext {
 }
 
 pub struct KeyDiff {
-    key: String,
-    has: String,
-    misses: String,
+    pub key: String,
+    pub has: String,
+    pub misses: String,
 }
 
 impl KeyDiff {
@@ -36,9 +36,9 @@ impl KeyDiff {
 }
 
 pub struct ValueDiff {
-    key: String,
-    value1: String,
-    value2: String,
+    pub key: String,
+    pub value1: String,
+    pub value2: String,
 }
 
 impl ValueDiff {
@@ -51,9 +51,9 @@ impl ValueDiff {
 }
 
 pub struct ArrayDiff {
-    key: String,
-    descriptor: ArrayDiffDesc,
-    value: String,
+    pub key: String,
+    pub descriptor: ArrayDiffDesc,
+    pub value: String,
 }
 
 impl ArrayDiff {
@@ -68,9 +68,9 @@ impl ArrayDiff {
 }
 
 pub struct TypeDiff {
-    key: String,
-    type1: String,
-    type2: String,
+    pub key: String,
+    pub type1: String,
+    pub type2: String,
 }
 
 impl TypeDiff {
