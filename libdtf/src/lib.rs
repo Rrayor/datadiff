@@ -234,6 +234,13 @@ fn handle_one_element_null_objects<'a>(
     b: Value,
     working_context: &WorkingContext,
 ) -> ComparisionResult {
+    if (a.is_null() && b.is_null()) || (!a.is_null() && !b.is_null()) {
+        panic!(
+            "handle_one_element_null_objects called with wrong parameters: {} {}",
+            a, b
+        );
+    }
+
     let mut key_diff = vec![];
     let mut type_diff = vec![];
     let mut value_diff = vec![];
@@ -251,7 +258,7 @@ fn handle_one_element_null_objects<'a>(
             format!("{}.{}", parent_key, key)
         };
         key_diff.push(KeyDiff {
-            key: full_key,
+            key: full_key.clone(),
             has: if a.is_null() {
                 working_context.file_b.name.clone()
             } else {
@@ -265,20 +272,28 @@ fn handle_one_element_null_objects<'a>(
         });
 
         type_diff.push(TypeDiff {
-            key: key.to_string(),
-            type1: "".to_string(),
-            type2: get_type(value).to_string(),
+            key: full_key.clone(),
+            type1: if a.is_null() {
+                "".to_string()
+            } else {
+                get_type(value).to_string()
+            },
+            type2: if a.is_null() {
+                get_type(value).to_string()
+            } else {
+                "".to_string()
+            },
         });
 
         value_diff.push(ValueDiff {
-            key: key.to_string(),
+            key: full_key.to_string(),
             value1: if a.is_null() {
                 "".to_string()
             } else {
-                value.to_string()
+                value.as_str().unwrap().to_string()
             },
             value2: if a.is_null() {
-                value.to_string()
+                value.as_str().unwrap().to_string()
             } else {
                 "".to_string()
             },
@@ -298,5 +313,91 @@ fn get_type(value: &Value) -> ValueType {
         Value::String(_) => ValueType::String,
         Value::Array(_) => ValueType::Array,
         Value::Object(_) => ValueType::Object,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::{
+        diff_types::{WorkingContext, WorkingFile},
+        handle_one_element_null_objects,
+    };
+
+    #[test]
+    #[should_panic]
+    fn test_handle_one_element_null_objects_panics_if_both_null() {
+        let a = json!(null);
+        let b = json!(null);
+        let working_context = create_test_working_context();
+        handle_one_element_null_objects("parent_key", a, b, &working_context);
+    }
+
+    #[test]
+    #[should_panic]
+
+    fn test_handle_one_element_null_objects_panics_neither_is_null() {
+        let a = json!({ "key": "something" });
+        let b = json!({ "key": "anything" });
+        let working_context = create_test_working_context();
+        handle_one_element_null_objects("parent_key", a, b, &working_context);
+    }
+
+    #[test]
+    fn test_handle_one_element_null_objects_return_a_if_b_is_null() {
+        let a = json!({ "key": "something" });
+        let b = json!(null);
+        let working_context = create_test_working_context();
+        let (key_diff, type_diff, value_diff, array_diff) =
+            handle_one_element_null_objects("parent_key", a, b, &working_context);
+
+        assert_eq!(key_diff[0].key, "parent_key.key");
+        assert_eq!(key_diff[0].has, "test1.json");
+        assert_eq!(key_diff[0].misses, "test2.json");
+
+        assert_eq!(type_diff[0].key, "parent_key.key");
+        assert_eq!(type_diff[0].type1, "string");
+        assert_eq!(type_diff[0].type2, "");
+
+        assert_eq!(value_diff[0].key, "parent_key.key");
+        assert_eq!(value_diff[0].value1, "something");
+        assert_eq!(value_diff[0].value2, "");
+
+        assert_eq!(array_diff.len(), 0);
+    }
+
+    #[test]
+    fn test_handle_one_element_null_objects_return_b_if_a_is_null() {
+        let a = json!(null);
+        let b = json!({ "key": "something" });
+        let working_context = create_test_working_context();
+        let (key_diff, type_diff, value_diff, array_diff) =
+            handle_one_element_null_objects("parent_key", a, b, &working_context);
+
+        assert_eq!(key_diff[0].key, "parent_key.key");
+        assert_eq!(key_diff[0].has, "test2.json");
+        assert_eq!(key_diff[0].misses, "test1.json");
+
+        assert_eq!(type_diff[0].key, "parent_key.key");
+        assert_eq!(type_diff[0].type1, "");
+        assert_eq!(type_diff[0].type2, "string");
+
+        assert_eq!(value_diff[0].key, "parent_key.key");
+        assert_eq!(value_diff[0].value1, "");
+        assert_eq!(value_diff[0].value2, "something");
+
+        assert_eq!(array_diff.len(), 0);
+    }
+
+    fn create_test_working_context() -> WorkingContext {
+        WorkingContext {
+            file_a: WorkingFile {
+                name: "test1.json".to_string(),
+            },
+            file_b: WorkingFile {
+                name: "test2.json".to_string(),
+            },
+        }
     }
 }
