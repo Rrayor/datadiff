@@ -24,6 +24,7 @@ impl fmt::Display for ValueType {
     }
 }
 
+#[derive(PartialEq)]
 pub enum ArrayDiffDesc {
     AHas,
     AMisses,
@@ -46,18 +47,21 @@ pub struct KeyDiff {
     pub misses: String,
 }
 
+#[derive(PartialEq)]
 pub struct ValueDiff {
     pub key: String,
     pub value1: String, // TODO: would be better as Option
     pub value2: String,
 }
 
+#[derive(PartialEq)]
 pub struct ArrayDiff {
     pub key: String,
     pub descriptor: ArrayDiffDesc,
     pub value: String,
 }
 
+#[derive(PartialEq)]
 pub struct TypeDiff {
     pub key: String,
     pub type1: String,

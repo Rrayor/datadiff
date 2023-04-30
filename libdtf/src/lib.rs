@@ -1,3 +1,4 @@
+use core::panic;
 use serde_json::{Map, Result, Value};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -180,52 +181,67 @@ fn compare_primitives<'a, T: PartialEq + Display>(
     diffs
 }
 
-fn handle_different_types<'a>(key: &'a str, a: Value, b: Value) -> Vec<TypeDiff> {
+fn handle_different_types<'a>(key: &'a str, a: &Value, b: &Value) -> Vec<TypeDiff> {
+    let type_a = get_type(&a);
+    let type_b = get_type(&b);
+
+    if type_a == type_b {
+        panic!(
+            "handle_different_types was called with the same types: {}",
+            type_a
+        );
+    }
+
     vec![TypeDiff {
         key: key.to_string(),
-        type1: get_type(&a).to_string(),
-        type2: get_type(&b).to_string(),
+        type1: type_a.to_string(),
+        type2: type_b.to_string(),
     }]
 }
 
 // One item is null
 
-fn handle_one_element_null_primitives<'a>(key: &'a str, a: Value, b: Value) -> Vec<ValueDiff> {
+fn handle_one_element_null_primitives<'a>(key: &'a str, a: &Value, b: &Value) -> Vec<ValueDiff> {
+    one_element_null_guard("handle_one_element_null_primitives", &a, &b);
+
     if a.is_null() {
         return vec![ValueDiff {
             key: key.to_string(),
             value1: "".to_string(),
-            value2: b.to_string(),
+            value2: b.as_str().unwrap().to_string(),
         }];
     } else {
         vec![ValueDiff {
             key: key.to_string(),
-            value1: a.to_string(),
+            value1: a.as_str().unwrap().to_string(),
             value2: "".to_string(),
         }]
     }
 }
 
-fn handle_one_element_null_arrays<'a>(key: &'a str, a: Value, b: Value) -> Vec<ArrayDiff> {
-    match (a, b) {
-        (Value::Null, Value::Array(b_array)) => b_array
-            .iter()
-            .map(|b_item| ArrayDiff {
+fn handle_one_element_null_arrays<'a>(key: &'a str, a: &Value, b: &Value) -> Vec<ArrayDiff> {
+    one_element_null_guard("handle_one_element_null_arrays", &a, &b);
+    let mut array_diff = vec![];
+
+    if a.is_null() {
+        for b_item in b.as_array().unwrap() {
+            array_diff.push(ArrayDiff {
                 key: key.to_string(),
                 descriptor: ArrayDiffDesc::BHas,
-                value: b_item.to_string(),
-            })
-            .collect(),
-        (Value::Array(a_array), Value::Null) => a_array
-            .iter()
-            .map(|a_item| ArrayDiff {
+                value: b_item.as_str().unwrap().to_string(),
+            });
+        }
+    } else {
+        for a_item in a.as_array().unwrap() {
+            array_diff.push(ArrayDiff {
                 key: key.to_string(),
                 descriptor: ArrayDiffDesc::AHas,
-                value: a_item.to_string(),
-            })
-            .collect(),
-        _ => vec![],
+                value: a_item.as_str().unwrap().to_string(),
+            });
+        }
     }
+
+    array_diff
 }
 
 fn handle_one_element_null_objects<'a>(
@@ -234,12 +250,7 @@ fn handle_one_element_null_objects<'a>(
     b: Value,
     working_context: &WorkingContext,
 ) -> ComparisionResult {
-    if (a.is_null() && b.is_null()) || (!a.is_null() && !b.is_null()) {
-        panic!(
-            "handle_one_element_null_objects called with wrong parameters: {} {}",
-            a, b
-        );
-    }
+    one_element_null_guard("handle_one_element_null_objects", &a, &b);
 
     let mut key_diff = vec![];
     let mut type_diff = vec![];
@@ -316,42 +327,228 @@ fn get_type(value: &Value) -> ValueType {
     }
 }
 
+fn one_element_null_guard(function_name: &str, a: &Value, b: &Value) {
+    if (a.is_null() && b.is_null()) || (!a.is_null() && !b.is_null()) {
+        panic!(
+            "{} called with wrong parameters: {} {}",
+            function_name, a, b
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
 
     use crate::{
-        diff_types::{WorkingContext, WorkingFile},
-        handle_one_element_null_objects,
+        compare_primitives,
+        diff_types::{ArrayDiff, ArrayDiffDesc, TypeDiff, ValueDiff, WorkingContext, WorkingFile},
+        handle_different_types, handle_one_element_null_arrays, handle_one_element_null_objects,
+        handle_one_element_null_primitives,
     };
 
     #[test]
     #[should_panic]
     fn test_handle_one_element_null_objects_panics_if_both_null() {
+        // arrange
         let a = json!(null);
         let b = json!(null);
         let working_context = create_test_working_context();
+
+        // act & assert (#[should_panic macro])
         handle_one_element_null_objects("parent_key", a, b, &working_context);
     }
 
     #[test]
     #[should_panic]
-
     fn test_handle_one_element_null_objects_panics_neither_is_null() {
+        // arrange
         let a = json!({ "key": "something" });
         let b = json!({ "key": "anything" });
         let working_context = create_test_working_context();
+
+        // act & assert (#[should_panic macro])
         handle_one_element_null_objects("parent_key", a, b, &working_context);
     }
 
     #[test]
+    #[should_panic]
+    fn test_handle_one_element_null_arrays_panics_if_both_null() {
+        // arrange
+        let a = json!(null);
+        let b = json!(null);
+
+        // act & assert (#[should_panic macro])
+        handle_one_element_null_arrays("parent_key", &a, &b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_handle_one_element_null_arrays_panics_neither_is_null() {
+        // arrange
+        let a = json!({ "key": vec!["something"] });
+        let b = json!({ "key": vec!["anything"] });
+
+        // act & assert (#[should_panic macro])
+        handle_one_element_null_arrays("parent_key", &a, &b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_handle_one_element_null_primitives_panics_if_both_null() {
+        // arrange
+        let a = json!(null);
+        let b = json!(null);
+
+        // act & assert (#[should_panic macro])
+        handle_one_element_null_primitives("parent_key", &a, &b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_handle_one_element_null_primitives_panics_neither_is_null() {
+        // arrange
+        let a = json!({ "key": "something" });
+        let b = json!({ "key": "anything" });
+
+        // act & assert (#[should_panic macro])
+        handle_one_element_null_primitives("parent_key", &a, &b);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_handle_different_types_panics_if_same_type() {
+        // arrange
+        let a = json!(5);
+        let b = json!(2);
+
+        // act & assert (#[should_panic macro])
+        handle_different_types("key", &a, &b);
+    }
+
+    #[test]
+    fn test_handle_different_types_returns_type_diff_vec() {
+        // arrange
+        let a = json!(5);
+        let b = json!("2");
+
+        let expected = vec![TypeDiff {
+            key: "key".to_string(),
+            type1: "number".to_string(),
+            type2: "string".to_string(),
+        }];
+
+        // act
+        let result = handle_different_types("key", &a, &b);
+
+        // assert
+        assert_eq!(result.len(), expected.len());
+        assert!(result.iter().eq(expected.iter()));
+    }
+
+    #[test]
+    fn test_handle_one_element_null_primitives_returns_a_if_b_is_null() {
+        // arrange
+        let a = json!("something");
+        let b = json!(null);
+
+        let expected = vec![ValueDiff {
+            key: "key".to_string(),
+            value1: "something".to_string(),
+            value2: "".to_string(),
+        }];
+
+        // act
+        let result = handle_one_element_null_primitives("key", &a, &b);
+
+        assert_eq!(result.len(), expected.len());
+        assert!(result.iter().eq(expected.iter()));
+    }
+
+    #[test]
+    fn test_handle_one_element_null_primitives_returns_b_if_a_is_null() {
+        // arrange
+        let a = json!(null);
+        let b = json!("something");
+
+        let expected = vec![ValueDiff {
+            key: "key".to_string(),
+            value1: "".to_string(),
+            value2: "something".to_string(),
+        }];
+
+        // act
+        let result = handle_one_element_null_primitives("key", &a, &b);
+
+        assert_eq!(result.len(), expected.len());
+        assert!(result.iter().eq(expected.iter()));
+    }
+
+    #[test]
+    fn test_handle_one_element_null_arrays_returns_a_if_b_is_null() {
+        // arrange
+        let a = json!(vec!["something", "anything"]);
+        let b = json!(null);
+
+        let expected = vec![
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "something".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "anything".to_string(),
+            },
+        ];
+
+        // act
+        let result = handle_one_element_null_arrays("key", &a, &b);
+
+        assert_eq!(result.len(), expected.len());
+        assert!(result.iter().eq(expected.iter()));
+    }
+
+    #[test]
+    fn test_handle_one_element_null_arrays_returns_b_if_a_is_null() {
+        // arrange
+        let a = json!(null);
+        let b = json!(vec!["something", "anything"]);
+
+        let expected = vec![
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::BHas,
+                value: "something".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::BHas,
+                value: "anything".to_string(),
+            },
+        ];
+
+        // act
+        let result = handle_one_element_null_arrays("key", &a, &b);
+
+        // assert
+        assert_eq!(result.len(), expected.len());
+        assert!(result.iter().eq(expected.iter()));
+    }
+
+    #[test]
     fn test_handle_one_element_null_objects_return_a_if_b_is_null() {
+        // arrange
         let a = json!({ "key": "something" });
         let b = json!(null);
         let working_context = create_test_working_context();
+
+        // act
         let (key_diff, type_diff, value_diff, array_diff) =
             handle_one_element_null_objects("parent_key", a, b, &working_context);
 
+        // assert
         assert_eq!(key_diff[0].key, "parent_key.key");
         assert_eq!(key_diff[0].has, "test1.json");
         assert_eq!(key_diff[0].misses, "test2.json");
@@ -369,12 +566,16 @@ mod tests {
 
     #[test]
     fn test_handle_one_element_null_objects_return_b_if_a_is_null() {
+        // arrange
         let a = json!(null);
         let b = json!({ "key": "something" });
         let working_context = create_test_working_context();
+
+        // act
         let (key_diff, type_diff, value_diff, array_diff) =
             handle_one_element_null_objects("parent_key", a, b, &working_context);
 
+        // assert
         assert_eq!(key_diff[0].key, "parent_key.key");
         assert_eq!(key_diff[0].has, "test2.json");
         assert_eq!(key_diff[0].misses, "test1.json");
@@ -388,6 +589,42 @@ mod tests {
         assert_eq!(value_diff[0].value2, "something");
 
         assert_eq!(array_diff.len(), 0);
+    }
+
+    #[test]
+    fn compare_primitives_returns_empty_vec_if_equal() {
+        // arrange
+        let a = json!(2);
+        let b = json!(2);
+
+        let expected = vec![];
+
+        // act
+        let result = compare_primitives("key", &a, &b);
+
+        // assert
+        assert_eq!(result.len(), expected.len());
+        assert!(result.iter().eq(expected.iter()));
+    }
+
+    #[test]
+    fn compare_primitives_returns_correct_diff_vec() {
+        // arrange
+        let a = json!(4);
+        let b = json!(2);
+
+        let expected = vec![ValueDiff {
+            key: "key".to_string(),
+            value1: "4".to_string(),
+            value2: "2".to_string(),
+        }];
+
+        // act
+        let result = compare_primitives("key", &a, &b);
+
+        // assert
+        assert_eq!(result.len(), expected.len());
+        assert!(result.iter().eq(expected.iter()));
     }
 
     fn create_test_working_context() -> WorkingContext {

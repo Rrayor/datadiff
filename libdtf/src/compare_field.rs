@@ -49,38 +49,38 @@ pub fn compare_field<'a>(
         (Value::Null, Value::String(b_value)) => (
             vec![],
             vec![],
-            handle_one_element_null_primitives(key, a_value.clone(), json!(b_value).to_owned()),
+            handle_one_element_null_primitives(key, a_value, &json!(b_value)),
             vec![],
         ),
         (Value::Null, Value::Number(b_value)) => (
             vec![],
             vec![],
-            handle_one_element_null_primitives(key, a_value.clone(), json!(b_value).to_owned()),
+            handle_one_element_null_primitives(key, a_value, &json!(b_value)),
             vec![],
         ),
         (Value::Null, Value::Bool(b_value)) => (
             vec![],
             vec![],
-            handle_one_element_null_primitives(key, a_value.clone(), json!(b_value).to_owned()),
+            handle_one_element_null_primitives(key, a_value, &json!(b_value)),
             vec![],
         ),
 
         (Value::String(a_value), Value::Null) => (
             vec![],
             vec![],
-            handle_one_element_null_primitives(key, json!(a_value).to_owned(), b_value.clone()),
+            handle_one_element_null_primitives(key, &json!(a_value), b_value),
             vec![],
         ),
         (Value::Number(a_value), Value::Null) => (
             vec![],
             vec![],
-            handle_one_element_null_primitives(key, json!(a_value).to_owned(), b_value.clone()),
+            handle_one_element_null_primitives(key, &json!(a_value), b_value),
             vec![],
         ),
         (Value::Bool(a_value), Value::Null) => (
             vec![],
             vec![],
-            handle_one_element_null_primitives(key, json!(a_value).to_owned(), b_value.clone()),
+            handle_one_element_null_primitives(key, &json!(a_value), b_value),
             vec![],
         ),
 
@@ -89,7 +89,7 @@ pub fn compare_field<'a>(
             vec![],
             vec![],
             vec![],
-            handle_one_element_null_arrays(key, a_value.clone(), json!(b_value).to_owned()),
+            handle_one_element_null_arrays(key, &a_value, &json!(b_value)),
         ),
         (Value::Null, Value::Object(b_value)) => handle_one_element_null_objects(
             key,
@@ -102,7 +102,7 @@ pub fn compare_field<'a>(
             vec![],
             vec![],
             vec![],
-            handle_one_element_null_arrays(key, json!(a_value).to_owned(), b_value.clone()),
+            handle_one_element_null_arrays(key, &json!(a_value), b_value),
         ),
         (Value::Object(a_value), Value::Null) => handle_one_element_null_objects(
             key,
@@ -114,25 +114,25 @@ pub fn compare_field<'a>(
         // Type difference a: string
         (Value::String(a_value), Value::Number(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::String(a_value), Value::Bool(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::String(a_value), Value::Array(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::String(a_value), Value::Object(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
@@ -140,25 +140,25 @@ pub fn compare_field<'a>(
         // Type difference a: number
         (Value::Number(a_value), Value::String(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Number(a_value), Value::Bool(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Number(a_value), Value::Array(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Number(a_value), Value::Object(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
@@ -166,25 +166,25 @@ pub fn compare_field<'a>(
         // Type difference a: bool
         (Value::Bool(a_value), Value::String(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Bool(a_value), Value::Number(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Bool(a_value), Value::Array(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Bool(a_value), Value::Object(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
@@ -192,25 +192,25 @@ pub fn compare_field<'a>(
         // Type difference a: array
         (Value::Array(a_value), Value::String(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Array(a_value), Value::Bool(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Array(a_value), Value::Number(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Array(a_value), Value::Object(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
@@ -218,25 +218,25 @@ pub fn compare_field<'a>(
         // Type difference a: object
         (Value::Object(a_value), Value::String(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Object(a_value), Value::Bool(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Object(a_value), Value::Array(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
         (Value::Object(a_value), Value::Number(b_value)) => (
             vec![],
-            handle_different_types(key, json!(a_value).to_owned(), json!(b_value).to_owned()),
+            handle_different_types(key, &json!(a_value), &json!(b_value)),
             vec![],
             vec![],
         ),
