@@ -1,4 +1,3 @@
-use core::panic;
 use serde_json::{Map, Result, Value};
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -185,12 +184,7 @@ fn handle_different_types<'a>(key: &'a str, a: &Value, b: &Value) -> Vec<TypeDif
     let type_a = get_type(&a);
     let type_b = get_type(&b);
 
-    if type_a == type_b {
-        panic!(
-            "handle_different_types was called with the same types: {}",
-            type_a
-        );
-    }
+    elements_different_types_guard_debug("handle_different_types", key, &type_a, &type_b);
 
     vec![TypeDiff {
         key: key.to_string(),
@@ -202,7 +196,7 @@ fn handle_different_types<'a>(key: &'a str, a: &Value, b: &Value) -> Vec<TypeDif
 // One item is null
 
 fn handle_one_element_null_primitives<'a>(key: &'a str, a: &Value, b: &Value) -> Vec<ValueDiff> {
-    one_element_null_guard("handle_one_element_null_primitives", &a, &b);
+    one_element_null_guard_debug("handle_one_element_null_primitives", &a, &b);
 
     if a.is_null() {
         return vec![ValueDiff {
@@ -220,7 +214,7 @@ fn handle_one_element_null_primitives<'a>(key: &'a str, a: &Value, b: &Value) ->
 }
 
 fn handle_one_element_null_arrays<'a>(key: &'a str, a: &Value, b: &Value) -> Vec<ArrayDiff> {
-    one_element_null_guard("handle_one_element_null_arrays", &a, &b);
+    one_element_null_guard_debug("handle_one_element_null_arrays", &a, &b);
     let mut array_diff = vec![];
 
     if a.is_null() {
@@ -250,7 +244,7 @@ fn handle_one_element_null_objects<'a>(
     b: Value,
     working_context: &WorkingContext,
 ) -> ComparisionResult {
-    one_element_null_guard("handle_one_element_null_objects", &a, &b);
+    one_element_null_guard_debug("handle_one_element_null_objects", &a, &b);
 
     let mut key_diff = vec![];
     let mut type_diff = vec![];
@@ -327,13 +321,31 @@ fn get_type(value: &Value) -> ValueType {
     }
 }
 
-fn one_element_null_guard(function_name: &str, a: &Value, b: &Value) {
-    if (a.is_null() && b.is_null()) || (!a.is_null() && !b.is_null()) {
-        panic!(
-            "{} called with wrong parameters: {} {}",
-            function_name, a, b
-        );
-    }
+// Debug guards
+
+fn elements_different_types_guard_debug(
+    function_name: &str,
+    key: &str,
+    type_a: &ValueType,
+    type_b: &ValueType,
+) {
+    debug_assert!(
+        type_a != type_b,
+        "{} was called with the same types: {}: {}",
+        function_name,
+        key,
+        type_a
+    );
+}
+
+fn one_element_null_guard_debug(function_name: &str, a: &Value, b: &Value) {
+    debug_assert!(
+        a.is_null() ^ b.is_null(),
+        "{} called with wrong parameters: {} {}",
+        function_name,
+        a,
+        b
+    );
 }
 
 #[cfg(test)]
@@ -343,8 +355,8 @@ mod tests {
     use crate::{
         compare_primitives,
         diff_types::{ArrayDiff, ArrayDiffDesc, TypeDiff, ValueDiff, WorkingContext, WorkingFile},
-        handle_different_types, handle_one_element_null_arrays, handle_one_element_null_objects,
-        handle_one_element_null_primitives,
+        handle_different_order_arrays, handle_different_types, handle_one_element_null_arrays,
+        handle_one_element_null_objects, handle_one_element_null_primitives,
     };
 
     #[test]
@@ -413,6 +425,45 @@ mod tests {
 
         // act & assert (#[should_panic macro])
         handle_one_element_null_primitives("parent_key", &a, &b);
+    }
+
+    #[test]
+    fn test_handle_different_order_arrays_returns_correct() {
+        //arrange
+        let arr_a = json!(vec![1, 2, 3, 4, 5, 6, 7]);
+        let arr_b = json!(vec![5, 7, 3, 11, 5, 2, 1]);
+
+        let expected = vec![
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::BHas,
+                value: "11".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::AMisses,
+                value: "11".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "4".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "4".to_string(),
+            },
+        ];
+
+        // act
+        let result = handle_different_order_arrays(&[arr_a], &[arr_b], "key".to_string());
+
+        println!("{:?}", result);
+
+        // assert
+        assert_eq!(result.len(), expected.len());
+        assert!(result.iter().eq(expected.iter()));
     }
 
     #[test]
@@ -592,7 +643,7 @@ mod tests {
     }
 
     #[test]
-    fn compare_primitives_returns_empty_vec_if_equal() {
+    fn test_compare_primitives_returns_empty_vec_if_equal() {
         // arrange
         let a = json!(2);
         let b = json!(2);
@@ -608,7 +659,7 @@ mod tests {
     }
 
     #[test]
-    fn compare_primitives_returns_correct_diff_vec() {
+    fn test_compare_primitives_returns_correct_diff_vec() {
         // arrange
         let a = json!(4);
         let b = json!(2);
@@ -626,6 +677,8 @@ mod tests {
         assert_eq!(result.len(), expected.len());
         assert!(result.iter().eq(expected.iter()));
     }
+
+    // Test utils
 
     fn create_test_working_context() -> WorkingContext {
         WorkingContext {
