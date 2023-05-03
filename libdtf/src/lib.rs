@@ -92,12 +92,12 @@ fn compare_arrays<'a>(
     a: &'a Vec<Value>,
     b: &'a Vec<Value>,
     working_context: &WorkingContext,
+    same_order: bool, // TODO: should have a config object
 ) -> ComparisionResult {
     let mut key_diff = vec![];
     let mut type_diff = vec![];
     let mut value_diff = vec![];
     let mut array_diff: Vec<ArrayDiff> = vec![];
-    let same_order = false; // TODO: this should be configurable
 
     if a.len() == b.len() {
         if same_order {
@@ -157,7 +157,7 @@ fn fill_diff_vectors<'a, T: PartialEq + Display>(
     let a_has = a.iter().filter(|&x| !b.contains(x)).collect::<Vec<&T>>();
     let b_has = b.iter().filter(|&x| !a.contains(x)).collect::<Vec<&T>>();
     let a_misses = b.iter().filter(|&x| !a.contains(x)).collect::<Vec<&T>>();
-    let b_misses = a.iter().filter(|&x| a.contains(x)).collect::<Vec<&T>>();
+    let b_misses = a.iter().filter(|&x| !b.contains(x)).collect::<Vec<&T>>();
 
     (a_has, a_misses, b_has, b_misses)
 }
@@ -353,10 +353,10 @@ mod tests {
     use serde_json::json;
 
     use crate::{
-        compare_primitives,
+        compare_arrays, compare_primitives,
         diff_types::{ArrayDiff, ArrayDiffDesc, TypeDiff, ValueDiff, WorkingContext, WorkingFile},
-        handle_different_order_arrays, handle_different_types, handle_one_element_null_arrays,
-        handle_one_element_null_objects, handle_one_element_null_primitives,
+        handle_different_types, handle_one_element_null_arrays, handle_one_element_null_objects,
+        handle_one_element_null_primitives,
     };
 
     #[test]
@@ -428,10 +428,10 @@ mod tests {
     }
 
     #[test]
-    fn test_handle_different_order_arrays_returns_correct() {
+    fn test_compare_arrays_returns_correct_when_not_same_order() {
         //arrange
-        let arr_a = json!(vec![1, 2, 3, 4, 5, 6, 7]);
-        let arr_b = json!(vec![5, 7, 3, 11, 5, 2, 1]);
+        let arr_a = [1, 2, 3, 4, 5, 6, 7].map(|num| json!(num)).to_vec();
+        let arr_b = [5, 7, 3, 11, 5, 2, 1].map(|num| json!(num)).to_vec();
 
         let expected = vec![
             ArrayDiff {
@@ -454,16 +454,148 @@ mod tests {
                 descriptor: ArrayDiffDesc::BMisses,
                 value: "4".to_string(),
             },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "6".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "6".to_string(),
+            },
         ];
 
-        // act
-        let result = handle_different_order_arrays(&[arr_a], &[arr_b], "key".to_string());
+        let working_context = WorkingContext {
+            file_a: WorkingFile {
+                name: "file_a".to_string(),
+            },
+            file_b: WorkingFile {
+                name: "file_b".to_string(),
+            },
+        };
 
-        println!("{:?}", result);
+        // act
+        let (_key_diff, _type_diff, _value_diff, array_diff) =
+            compare_arrays("key", &arr_a, &arr_b, &working_context, false);
 
         // assert
-        assert_eq!(result.len(), expected.len());
-        assert!(result.iter().eq(expected.iter()));
+        assert_eq!(array_diff.len(), expected.len());
+        assert!(array_diff.iter().all(|num| expected.contains(num)));
+    }
+
+    #[test]
+    fn test_compare_arrays_returns_correct_when_not_same_length() {
+        //arrange
+        let arr_a = [1, 2, 3, 4, 5, 6, 7, 8].map(|num| json!(num)).to_vec();
+        let arr_b = [5, 7, 3, 11, 5, 2, 1].map(|num| json!(num)).to_vec();
+
+        let expected = vec![
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::BHas,
+                value: "11".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::AMisses,
+                value: "11".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "4".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "4".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "6".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "6".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "8".to_string(),
+            },
+            ArrayDiff {
+                key: "key".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "8".to_string(),
+            },
+        ];
+
+        let working_context = WorkingContext {
+            file_a: WorkingFile {
+                name: "file_a".to_string(),
+            },
+            file_b: WorkingFile {
+                name: "file_b".to_string(),
+            },
+        };
+
+        // act
+        let (_key_diff, _type_diff, _value_diff, array_diff) =
+            compare_arrays("key", &arr_a, &arr_b, &working_context, true);
+
+        // assert
+        assert_eq!(array_diff.len(), expected.len());
+        assert!(array_diff.iter().all(|num| expected.contains(num)));
+    }
+
+    #[test]
+    fn test_compare_arrays_returns_correct_when_same_order_same_length() {
+        //arrange
+        let arr_a = [1, 2, 3, 4, 5, 6, 7].map(|num| json!(num)).to_vec();
+        let arr_b = [5, 2, 3, 5, 5, 8, 1].map(|num| json!(num)).to_vec();
+
+        let expected = vec![
+            ValueDiff {
+                key: "key[0]".to_string(),
+                value1: 1.to_string(),
+                value2: 5.to_string(),
+            },
+            ValueDiff {
+                key: "key[3]".to_string(),
+                value1: 4.to_string(),
+                value2: 5.to_string(),
+            },
+            ValueDiff {
+                key: "key[5]".to_string(),
+                value1: 6.to_string(),
+                value2: 8.to_string(),
+            },
+            ValueDiff {
+                key: "key[6]".to_string(),
+                value1: 7.to_string(),
+                value2: 1.to_string(),
+            },
+        ];
+
+        let working_context = WorkingContext {
+            file_a: WorkingFile {
+                name: "file_a".to_string(),
+            },
+            file_b: WorkingFile {
+                name: "file_b".to_string(),
+            },
+        };
+
+        // act
+        let (_key_diff, _type_diff, value_diff, _array_diff) =
+            compare_arrays("key", &arr_a, &arr_b, &working_context, true);
+
+        // assert
+        assert_eq!(value_diff.len(), expected.len());
+        assert!(value_diff.iter().all(|num| expected.contains(num)));
     }
 
     #[test]

@@ -39,7 +39,7 @@ pub fn compare_field<'a>(
 
         // Composites of same type
         (Value::Array(a_value), Value::Array(b_value)) => {
-            compare_arrays(key, a_value, b_value, working_context)
+            compare_arrays(key, a_value, b_value, working_context, false) // TODO: same_order argument
         }
         (Value::Object(a_value), Value::Object(b_value)) => {
             compare_objects(key, a_value, b_value, working_context)
