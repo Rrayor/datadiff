@@ -9,3 +9,4 @@ edition = "2021"
 libdtf = { path = "../libdtf" }
 term-table = "1.3.2"
 colored = "2.0.0"
+clap = { version="4.2.4", features=["derive"]}

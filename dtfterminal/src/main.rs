@@ -1,3 +1,4 @@
+use clap::Parser;
 use colored::{Color, ColoredString, Colorize};
 use libdtf::{
     compare_objects,
@@ -14,23 +15,39 @@ use diff_types::{
     ArrayDiff, ArrayDiffDesc, KeyDiff, TypeDiff, ValueDiff, WorkingContext, WorkingFile,
 };
 
-fn main() -> Result<(), ()> {
-    let file_name1 = "test_data/person3.json";
-    let file_name2 = "test_data/person4.json";
-    let data1 = read_json_file(file_name1).expect(&format!("Couldn't read file: {}", file_name1));
-    let data2 = read_json_file(file_name2).expect(&format!("Couldn't read file: {}", file_name2));
+#[derive(Default, Parser, Debug)]
+#[clap(version, about)]
+/// Find the difference in your data structures
+struct Arguments {
+    /// The file containing your first data structure
+    file_name1: String,
+    /// The file containing your second data structure
+    file_name2: String,
+    /// Do you want arrays to be the same order? If defined you will get Value differences with indexes, otherwise you will get array differences, that tell you which object contains or misses values.
+    #[clap(short)]
+    array_same_order: Option<bool>,
+}
 
-    // TODO: build properly
-    let config = Config {
-        array_same_order: false,
+fn main() -> Result<(), ()> {
+    let args = Arguments::parse();
+    let data1 = read_json_file(&args.file_name1)
+        .expect(&format!("Couldn't read file: {}", &args.file_name1));
+    let data2 = read_json_file(&args.file_name2)
+        .expect(&format!("Couldn't read file: {}", &args.file_name2));
+
+    let array_same_order = match args.array_same_order {
+        Some(value) => value,
+        None => false,
     };
+
+    let config = Config { array_same_order };
 
     let working_context = WorkingContext {
         file_a: WorkingFile {
-            name: file_name1.to_string(),
+            name: args.file_name1,
         },
         file_b: WorkingFile {
-            name: file_name2.to_string(),
+            name: args.file_name2,
         },
         config,
     };
