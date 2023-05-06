@@ -1,5 +1,9 @@
 use colored::{Color, ColoredString, Colorize};
-use libdtf::{compare_objects, diff_types, read_json_file};
+use libdtf::{
+    compare_objects,
+    diff_types::{self, Config},
+    read_json_file,
+};
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
@@ -15,6 +19,12 @@ fn main() -> Result<(), ()> {
     let file_name2 = "test_data/person4.json";
     let data1 = read_json_file(file_name1).expect(&format!("Couldn't read file: {}", file_name1));
     let data2 = read_json_file(file_name2).expect(&format!("Couldn't read file: {}", file_name2));
+
+    // TODO: build properly
+    let config = Config {
+        array_same_order: false,
+    };
+
     let working_context = WorkingContext {
         file_a: WorkingFile {
             name: file_name1.to_string(),
@@ -22,9 +32,11 @@ fn main() -> Result<(), ()> {
         file_b: WorkingFile {
             name: file_name2.to_string(),
         },
+        config,
     };
+
     let (key_diff, type_diff, value_diff, array_diff) =
-        compare_objects("", &data1, &data2, &working_context, false); // TODO: array_same_order config
+        compare_objects("", &data1, &data2, &working_context);
 
     let key_diff_table = create_table_key_diff(key_diff, &working_context);
     println!("{}", key_diff_table.render());

@@ -25,7 +25,6 @@ pub fn compare_objects<'a>(
     a: &'a Map<String, Value>,
     b: &'a Map<String, Value>,
     working_context: &WorkingContext,
-    array_same_order: bool, // TODO: Config object
 ) -> ComparisionResult {
     let mut key_diff = vec![];
     let mut type_diff = vec![];
@@ -55,13 +54,7 @@ pub fn compare_objects<'a>(
                 mut field_type_diff,
                 mut field_value_diff,
                 mut field_array_diff,
-            ) = compare_field(
-                key.as_str(),
-                a_value,
-                b_value,
-                working_context,
-                array_same_order,
-            );
+            ) = compare_field(key.as_str(), a_value, b_value, working_context);
             {
                 key_diff.append(&mut field_key_diff);
                 type_diff.append(&mut field_type_diff);
@@ -99,7 +92,6 @@ fn compare_arrays<'a>(
     a: &'a Vec<Value>,
     b: &'a Vec<Value>,
     working_context: &WorkingContext,
-    same_order: bool, // TODO: should have a config object
 ) -> ComparisionResult {
     let mut key_diff = vec![];
     let mut type_diff = vec![];
@@ -107,7 +99,7 @@ fn compare_arrays<'a>(
     let mut array_diff: Vec<ArrayDiff> = vec![];
 
     if a.len() == b.len() {
-        if same_order {
+        if working_context.config.array_same_order {
             for (i, a_item) in a.iter().enumerate() {
                 let (
                     mut item_key_diff,
@@ -119,7 +111,6 @@ fn compare_arrays<'a>(
                     a_item,
                     &b[i],
                     working_context,
-                    same_order,
                 );
 
                 key_diff.append(&mut item_key_diff);
@@ -363,7 +354,8 @@ mod tests {
     use crate::{
         compare_arrays, compare_objects, compare_primitives,
         diff_types::{
-            ArrayDiff, ArrayDiffDesc, KeyDiff, TypeDiff, ValueDiff, WorkingContext, WorkingFile,
+            ArrayDiff, ArrayDiffDesc, Config, KeyDiff, TypeDiff, ValueDiff, WorkingContext,
+            WorkingFile,
         },
         handle_different_types, handle_one_element_null_arrays, handle_one_element_null_objects,
         handle_one_element_null_primitives,
@@ -476,18 +468,12 @@ mod tests {
             },
         ];
 
-        let working_context = WorkingContext {
-            file_a: WorkingFile {
-                name: "file_a".to_string(),
-            },
-            file_b: WorkingFile {
-                name: "file_b".to_string(),
-            },
-        };
+        let working_context =
+            create_test_working_context_with_file_names("file_a.json", "file_b.json", false);
 
         // act
         let (_key_diff, _type_diff, _value_diff, array_diff) =
-            compare_arrays("key", &arr_a, &arr_b, &working_context, false);
+            compare_arrays("key", &arr_a, &arr_b, &working_context);
 
         // assert
         assert_eq!(array_diff.len(), expected.len());
@@ -543,18 +529,12 @@ mod tests {
             },
         ];
 
-        let working_context = WorkingContext {
-            file_a: WorkingFile {
-                name: "file_a".to_string(),
-            },
-            file_b: WorkingFile {
-                name: "file_b".to_string(),
-            },
-        };
+        let working_context =
+            create_test_working_context_with_file_names("file_a.json", "file_b.json", true);
 
         // act
         let (_key_diff, _type_diff, _value_diff, array_diff) =
-            compare_arrays("key", &arr_a, &arr_b, &working_context, true);
+            compare_arrays("key", &arr_a, &arr_b, &working_context);
 
         // assert
         assert_eq!(array_diff.len(), expected.len());
@@ -590,18 +570,12 @@ mod tests {
             },
         ];
 
-        let working_context = WorkingContext {
-            file_a: WorkingFile {
-                name: "file_a".to_string(),
-            },
-            file_b: WorkingFile {
-                name: "file_b".to_string(),
-            },
-        };
+        let working_context =
+            create_test_working_context_with_file_names("file_a.json", "file_b.json", true);
 
         // act
         let (_key_diff, _type_diff, value_diff, _array_diff) =
-            compare_arrays("key", &arr_a, &arr_b, &working_context, true);
+            compare_arrays("key", &arr_a, &arr_b, &working_context);
 
         // assert
         assert_eq!(value_diff.len(), expected.len());
@@ -710,18 +684,11 @@ mod tests {
 
         let expected_array_diffs: Vec<ArrayDiff> = vec![];
 
-        let working_context = &WorkingContext {
-            file_a: WorkingFile {
-                name: "a.json".to_string(),
-            },
-            file_b: WorkingFile {
-                name: "b.json".to_string(),
-            },
-        };
+        let working_context = create_test_working_context_with_file_names("a.json", "b.json", true);
 
         // act
         let (key_diffs, type_diffs, value_diffs, array_diffs) =
-            compare_objects("", &object_a, &object_b, working_context, true);
+            compare_objects("", &object_a, &object_b, &working_context);
 
         // assert
         assert_eq!(key_diffs.len(), expected_key_diffs.len());
@@ -885,18 +852,11 @@ mod tests {
             },
         ];
 
-        let working_context = &WorkingContext {
-            file_a: WorkingFile {
-                name: "a.json".to_string(),
-            },
-            file_b: WorkingFile {
-                name: "b.json".to_string(),
-            },
-        };
+        let working_context = create_test_working_context_with_file_names("a.json", "b.json", true);
 
         // act
         let (key_diffs, type_diffs, value_diffs, array_diffs) =
-            compare_objects("", &object_a, &object_b, working_context, true);
+            compare_objects("", &object_a, &object_b, &working_context);
 
         // assert
         assert_eq!(key_diffs.len(), expected_key_diffs.len());
@@ -1040,18 +1000,12 @@ mod tests {
             },
         ];
 
-        let working_context = &WorkingContext {
-            file_a: WorkingFile {
-                name: "a.json".to_string(),
-            },
-            file_b: WorkingFile {
-                name: "b.json".to_string(),
-            },
-        };
+        let working_context =
+            create_test_working_context_with_file_names("a.json", "b.json", false);
 
         // act
         let (key_diffs, type_diffs, value_diffs, array_diffs) =
-            compare_objects("", &object_a, &object_b, working_context, false);
+            compare_objects("", &object_a, &object_b, &working_context);
 
         // assert
         assert_eq!(key_diffs.len(), expected_key_diffs.len());
@@ -1277,13 +1231,22 @@ mod tests {
     // Test utils
 
     fn create_test_working_context() -> WorkingContext {
+        create_test_working_context_with_file_names("test1.json", "test2.json", false)
+    }
+
+    fn create_test_working_context_with_file_names(
+        file_name_a: &str,
+        file_name_b: &str,
+        array_same_order: bool,
+    ) -> WorkingContext {
         WorkingContext {
             file_a: WorkingFile {
-                name: "test1.json".to_string(),
+                name: file_name_a.to_string(),
             },
             file_b: WorkingFile {
-                name: "test2.json".to_string(),
+                name: file_name_b.to_string(),
             },
+            config: Config { array_same_order },
         }
     }
 }

@@ -32,6 +32,10 @@ pub enum ArrayDiffDesc {
     BMisses,
 }
 
+pub struct Config {
+    pub array_same_order: bool,
+}
+
 pub struct WorkingFile {
     pub name: String,
 }
@@ -39,6 +43,7 @@ pub struct WorkingFile {
 pub struct WorkingContext {
     pub file_a: WorkingFile,
     pub file_b: WorkingFile,
+    pub config: Config,
 }
 
 #[derive(PartialEq, Debug)]
