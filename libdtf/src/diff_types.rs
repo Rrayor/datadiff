@@ -1,5 +1,7 @@
 use std::fmt;
 
+use serde_json::Value;
+
 #[derive(Debug, PartialEq)]
 pub enum ValueType {
     Null,
@@ -32,6 +34,18 @@ pub enum ArrayDiffDesc {
     BMisses,
 }
 
+#[derive(PartialEq, Debug)]
+pub struct DataValue {
+    pub key: String,
+    pub value: Value,
+}
+
+impl DataValue {
+    pub fn new(key: String, value: Value) -> DataValue {
+        DataValue { key, value }
+    }
+}
+
 pub struct Config {
     pub array_same_order: bool,
 }
@@ -53,6 +67,24 @@ pub struct KeyDiff {
     pub misses: String,
 }
 
+impl KeyDiff {
+    pub fn new(key: String, has: String, misses: String) -> KeyDiff {
+        KeyDiff { key, has, misses }
+    }
+}
+#[derive(PartialEq, Debug)]
+pub struct TypeDiff {
+    pub key: String,
+    pub type1: String,
+    pub type2: String,
+}
+
+impl TypeDiff {
+    pub fn new(key: String, type1: String, type2: String) -> TypeDiff {
+        TypeDiff { key, type1, type2 }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub struct ValueDiff {
     pub key: String,
@@ -60,18 +92,21 @@ pub struct ValueDiff {
     pub value2: String,
 }
 
+impl ValueDiff {
+    pub fn new(key: String, value1: String, value2: String) -> ValueDiff {
+        ValueDiff {
+            key,
+            value1,
+            value2,
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub struct ArrayDiff {
     pub key: String,
     pub descriptor: ArrayDiffDesc,
     pub value: String,
-}
-
-#[derive(PartialEq)]
-pub struct TypeDiff {
-    pub key: String,
-    pub type1: String,
-    pub type2: String,
 }
 
 pub type ComparisionResult = (Vec<KeyDiff>, Vec<TypeDiff>, Vec<ValueDiff>, Vec<ArrayDiff>);

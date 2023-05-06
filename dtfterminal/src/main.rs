@@ -1,9 +1,8 @@
 use clap::Parser;
 use colored::{Color, ColoredString, Colorize};
 use libdtf::{
-    compare_objects,
     diff_types::{self, Config},
-    read_json_file,
+    find_array_diffs, find_key_diffs, find_type_diffs, find_value_diffs, read_json_file,
 };
 use term_table::{
     row::Row,
@@ -52,8 +51,10 @@ fn main() -> Result<(), ()> {
         config,
     };
 
-    let (key_diff, type_diff, value_diff, array_diff) =
-        compare_objects("", &data1, &data2, &working_context);
+    let key_diff = find_key_diffs("", &data1, &data2, &working_context);
+    let type_diff = find_type_diffs("", &data1, &data2, &working_context);
+    let value_diff = find_value_diffs("", &data1, &data2, &working_context);
+    let array_diff = find_array_diffs("", &data1, &data2, &working_context);
 
     let key_diff_table = create_table_key_diff(key_diff, &working_context);
     println!("{}", key_diff_table.render());
@@ -220,12 +221,8 @@ fn add_array_table_rows(table: &mut Table, data: &Vec<ArrayDiff>) {
             .replace(",", ",\n");
         table.add_row(Row::new(vec![
             TableCell::new(&ad.key),
-            TableCell::new(
-                get_array_table_cell_value(&ad.descriptor, &value_str).color(Color::Green),
-            ),
-            TableCell::new(
-                get_array_table_cell_value(&ad.descriptor, &value_str).color(Color::Red),
-            ),
+            TableCell::new(get_array_table_cell_value(&ad.descriptor, &value_str)),
+            TableCell::new(get_array_table_cell_value(&ad.descriptor, &value_str)),
         ]));
     }
 }

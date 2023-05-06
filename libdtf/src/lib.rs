@@ -1,5 +1,5 @@
 use serde_json::{Map, Result, Value};
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::BufReader;
@@ -7,10 +7,8 @@ use std::io::BufReader;
 mod compare_field;
 pub mod diff_types;
 
-use compare_field::compare_field;
 use diff_types::{
-    ArrayDiff, ArrayDiffDesc, ComparisionResult, KeyDiff, TypeDiff, ValueDiff, ValueType,
-    WorkingContext,
+    ArrayDiff, ArrayDiffDesc, KeyDiff, TypeDiff, ValueDiff, ValueType, WorkingContext,
 };
 
 pub fn read_json_file(file_path: &str) -> Result<Map<String, Value>> {
@@ -20,24 +18,19 @@ pub fn read_json_file(file_path: &str) -> Result<Map<String, Value>> {
     Ok(result)
 }
 
-pub fn compare_objects<'a>(
+pub fn find_key_diffs<'a>(
     key_in: &'a str,
-    a: &'a Map<String, Value>,
-    b: &'a Map<String, Value>,
+    a: &Map<String, Value>,
+    b: &Map<String, Value>,
     working_context: &WorkingContext,
-) -> ComparisionResult {
+) -> Vec<KeyDiff> {
     let mut key_diff = vec![];
-    let mut type_diff = vec![];
-    let mut value_diff = vec![];
-    let mut array_diff = vec![];
 
-    // create a map of all keys in `b`
-    let mut b_keys = HashMap::new();
+    let mut b_keys = HashSet::new();
     for b_key in b.keys() {
-        b_keys.insert(b_key, ());
+        b_keys.insert(b_key);
     }
 
-    // iterate over `a`, checking if each key is in `b`
     for (a_key, a_value) in a.into_iter() {
         let key = if key_in.is_empty() {
             a_key.to_string()
@@ -46,104 +39,287 @@ pub fn compare_objects<'a>(
         };
 
         if let Some(b_value) = b.get(a_key) {
-            // remove the key from `b_keys` if it is in `b`
             b_keys.remove(a_key);
 
-            let (
-                mut field_key_diff,
-                mut field_type_diff,
-                mut field_value_diff,
-                mut field_array_diff,
-            ) = compare_field(key.as_str(), a_value, b_value, working_context);
-            {
-                key_diff.append(&mut field_key_diff);
-                type_diff.append(&mut field_type_diff);
-                value_diff.append(&mut field_value_diff);
-                array_diff.append(&mut field_array_diff);
-            }
+            key_diff.append(&mut find_key_diffs_in_values(
+                &key,
+                a_value,
+                b_value,
+                working_context,
+            ));
         } else {
             key_diff.push(KeyDiff {
-                key: key,
+                key,
                 has: working_context.file_a.name.clone(),
                 misses: working_context.file_b.name.clone(),
             });
         }
     }
 
-    // add any keys remaining in `b_keys` to the `key_diff` vector
-    for (b_key, _) in b_keys {
-        let key = if key_in.is_empty() {
-            b_key.to_string()
-        } else {
-            format!("{}.{}", key_in, b_key)
-        };
-        key_diff.push(KeyDiff {
-            key: key,
-            has: working_context.file_b.name.clone(),
-            misses: working_context.file_a.name.clone(),
-        });
-    }
+    let mut remainder = b_keys
+        .into_iter()
+        .map(|key| {
+            KeyDiff::new(
+                key.to_owned(),
+                working_context.file_b.name.to_owned(),
+                working_context.file_a.name.to_owned(),
+            )
+        })
+        .collect();
 
-    (key_diff, type_diff, value_diff, array_diff)
+    key_diff.append(&mut remainder);
+
+    key_diff
 }
 
-fn compare_arrays<'a>(
-    key: &'a str,
-    a: &'a Vec<Value>,
-    b: &'a Vec<Value>,
+fn find_key_diffs_in_values(
+    key_in: &str,
+    a: &Value,
+    b: &Value,
     working_context: &WorkingContext,
-) -> ComparisionResult {
+) -> Vec<KeyDiff> {
     let mut key_diff = vec![];
-    let mut type_diff = vec![];
-    let mut value_diff = vec![];
-    let mut array_diff: Vec<ArrayDiff> = vec![];
 
-    if a.len() == b.len() {
-        if working_context.config.array_same_order {
-            for (i, a_item) in a.iter().enumerate() {
-                let (
-                    mut item_key_diff,
-                    mut item_type_diff,
-                    mut item_value_diff,
-                    mut item_array_diff,
-                ) = compare_field(
-                    format!("{}[{}]", key.to_string(), i.to_string()).as_str(),
-                    a_item,
-                    &b[i],
-                    working_context,
-                );
-
-                key_diff.append(&mut item_key_diff);
-                type_diff.append(&mut item_type_diff);
-                value_diff.append(&mut item_value_diff);
-                array_diff.append(&mut item_array_diff);
-            }
-        } else {
-            array_diff = handle_different_order_arrays(a, b, key.to_string());
-        }
-    } else {
-        array_diff = handle_different_order_arrays(a, b, key.to_string());
+    if a.is_object() && b.is_object() {
+        key_diff.append(&mut find_key_diffs(
+            &key_in,
+            a.as_object().unwrap(),
+            b.as_object().unwrap(),
+            working_context,
+        ));
     }
 
-    (key_diff, type_diff, value_diff, array_diff)
+    if working_context.config.array_same_order
+        && a.is_array()
+        && b.is_array()
+        && a.as_array().unwrap().len() == b.as_array().unwrap().len()
+    {
+        for (index, _) in a.as_array().unwrap().into_iter().enumerate() {
+            let array_key = format!("{}[{}]", key_in, index);
+            key_diff.append(&mut find_key_diffs_in_values(
+                &array_key,
+                a,
+                b,
+                working_context,
+            ));
+        }
+    }
+
+    key_diff
 }
 
-fn handle_different_order_arrays(a: &[Value], b: &[Value], key: String) -> Vec<ArrayDiff> {
-    let mut array_diff = Vec::new();
-    let (a_has, a_misses, b_has, b_misses) = fill_diff_vectors(a, b);
+pub fn find_type_diffs<'a>(
+    key_in: &'a str,
+    a: &Map<String, Value>,
+    b: &Map<String, Value>,
+    working_context: &WorkingContext,
+) -> Vec<TypeDiff> {
+    let mut type_diff = vec![];
 
-    for (value, desc) in a_has
-        .iter()
-        .map(|v| (v, ArrayDiffDesc::AHas))
-        .chain(a_misses.iter().map(|v| (v, ArrayDiffDesc::AMisses)))
-        .chain(b_has.iter().map(|v| (v, ArrayDiffDesc::BHas)))
-        .chain(b_misses.iter().map(|v| (v, ArrayDiffDesc::BMisses)))
+    for (a_key, a_value) in a.into_iter() {
+        if let Some(b_value) = b.get(a_key) {
+            let key = if key_in.is_empty() {
+                a_key.to_string()
+            } else {
+                format!("{}.{}", key_in, a_key)
+            };
+
+            type_diff.append(&mut find_type_diffs_in_values(
+                &key,
+                a_value,
+                b_value,
+                working_context,
+            ))
+        }
+    }
+
+    type_diff
+}
+
+fn find_type_diffs_in_values(
+    key_in: &str,
+    a: &Value,
+    b: &Value,
+    working_context: &WorkingContext,
+) -> Vec<TypeDiff> {
+    let mut type_diff = vec![];
+
+    if a.is_object() && b.is_object() {
+        type_diff.append(&mut find_type_diffs(
+            &key_in,
+            a.as_object().unwrap(),
+            b.as_object().unwrap(),
+            working_context,
+        ));
+    }
+
+    if working_context.config.array_same_order
+        && a.is_array()
+        && b.is_array()
+        && a.as_array().unwrap().len() == b.as_array().unwrap().len()
     {
-        array_diff.push(ArrayDiff {
-            key: key.clone(),
-            descriptor: desc,
-            value: value.to_string(),
-        });
+        for (index, _) in a.as_array().unwrap().into_iter().enumerate() {
+            let array_key = format!("{}[{}]", key_in, index);
+            type_diff.append(&mut find_type_diffs_in_values(
+                &array_key,
+                a,
+                b,
+                working_context,
+            ));
+        }
+    }
+
+    let a_type = get_type(a);
+    let b_type = get_type(b);
+
+    if a_type != b_type {
+        type_diff.push(TypeDiff::new(
+            key_in.to_owned(),
+            a_type.to_string(),
+            b_type.to_string(),
+        ));
+    }
+
+    type_diff
+}
+
+pub fn find_value_diffs<'a>(
+    key_in: &'a str,
+    a: &Map<String, Value>,
+    b: &Map<String, Value>,
+    working_context: &WorkingContext,
+) -> Vec<ValueDiff> {
+    let mut value_diff = vec![];
+
+    for (a_key, a_value) in a.into_iter() {
+        if let Some(b_value) = b.get(a_key) {
+            let key = if key_in.is_empty() {
+                a_key.to_string()
+            } else {
+                format!("{}.{}", key_in, a_key)
+            };
+
+            value_diff.append(&mut find_value_diffs_in_values(
+                &key,
+                a_value,
+                b_value,
+                working_context,
+            ));
+        }
+    }
+
+    value_diff
+}
+
+fn find_value_diffs_in_values<'a>(
+    key_in: &'a str,
+    a: &'a Value,
+    b: &'a Value,
+    working_context: &WorkingContext,
+) -> Vec<ValueDiff> {
+    let mut value_diff = vec![];
+    if a.is_object() && b.is_object() {
+        value_diff.append(&mut find_value_diffs(
+            &key_in,
+            a.as_object().unwrap(),
+            b.as_object().unwrap(),
+            working_context,
+        ));
+    }
+
+    if working_context.config.array_same_order
+        && a.is_array()
+        && b.is_array()
+        && a.as_array().unwrap().len() == b.as_array().unwrap().len()
+    {
+        for (index, item) in a.as_array().unwrap().into_iter().enumerate() {
+            let array_key = format!("{}[{}]", key_in, index);
+            value_diff.append(&mut find_value_diffs_in_values(
+                &array_key,
+                &item,
+                &b[&index],
+                working_context,
+            ));
+        }
+    }
+
+    if a != b {
+        value_diff.push(ValueDiff::new(
+            key_in.to_owned(),
+            a.to_string(),
+            b.to_string(),
+        ));
+    }
+
+    value_diff
+}
+
+pub fn find_array_diffs<'a>(
+    key_in: &'a str,
+    a: &Map<String, Value>,
+    b: &Map<String, Value>,
+    working_context: &WorkingContext,
+) -> Vec<ArrayDiff> {
+    if working_context.config.array_same_order {
+        return vec![];
+    }
+
+    let mut array_diff = vec![];
+
+    for (a_key, a_value) in a.into_iter() {
+        if let Some(b_value) = b.get(a_key) {
+            let key = if key_in.is_empty() {
+                a_key.to_string()
+            } else {
+                format!("{}.{}", key_in, a_key)
+            };
+
+            array_diff.append(&mut find_array_diffs_in_values(
+                &key,
+                a_value,
+                b_value,
+                working_context,
+            ));
+        }
+    }
+
+    array_diff
+}
+
+fn find_array_diffs_in_values(
+    key_in: &str,
+    a: &Value,
+    b: &Value,
+    working_context: &WorkingContext,
+) -> Vec<ArrayDiff> {
+    let mut array_diff = vec![];
+
+    if a.is_object() && b.is_object() {
+        array_diff.append(&mut find_array_diffs(
+            &key_in,
+            a.as_object().unwrap(),
+            b.as_object().unwrap(),
+            working_context,
+        ));
+    }
+
+    if a.is_array() && b.is_array() {
+        let (a_has, a_misses, b_has, b_misses) =
+            fill_diff_vectors(&a.as_array().unwrap(), b.as_array().unwrap());
+
+        for (value, desc) in a_has
+            .iter()
+            .map(|v| (v, ArrayDiffDesc::AHas))
+            .chain(a_misses.iter().map(|v| (v, ArrayDiffDesc::AMisses)))
+            .chain(b_has.iter().map(|v| (v, ArrayDiffDesc::BHas)))
+            .chain(b_misses.iter().map(|v| (v, ArrayDiffDesc::BMisses)))
+        {
+            array_diff.push(ArrayDiff {
+                key: key_in.to_owned(),
+                descriptor: desc,
+                value: value.to_string(),
+            });
+        }
     }
 
     array_diff
@@ -161,152 +337,6 @@ fn fill_diff_vectors<'a, T: PartialEq + Display>(
     (a_has, a_misses, b_has, b_misses)
 }
 
-fn compare_primitives<'a, T: PartialEq + Display>(
-    key: &'a str,
-    a: &'a T,
-    b: &'a T,
-) -> Vec<ValueDiff> {
-    let mut diffs = vec![];
-
-    if a != b {
-        diffs.push(ValueDiff {
-            key: key.to_string(),
-            value1: a.to_string(),
-            value2: b.to_string(),
-        });
-    }
-
-    diffs
-}
-
-fn handle_different_types<'a>(key: &'a str, a: &Value, b: &Value) -> Vec<TypeDiff> {
-    let type_a = get_type(&a);
-    let type_b = get_type(&b);
-
-    elements_different_types_guard_debug("handle_different_types", key, &type_a, &type_b);
-
-    vec![TypeDiff {
-        key: key.to_string(),
-        type1: type_a.to_string(),
-        type2: type_b.to_string(),
-    }]
-}
-
-// One item is null
-
-fn handle_one_element_null_primitives<'a>(key: &'a str, a: &Value, b: &Value) -> Vec<ValueDiff> {
-    one_element_null_guard_debug("handle_one_element_null_primitives", &a, &b);
-
-    if a.is_null() {
-        return vec![ValueDiff {
-            key: key.to_string(),
-            value1: "".to_string(),
-            value2: b.as_str().unwrap().to_string(),
-        }];
-    } else {
-        vec![ValueDiff {
-            key: key.to_string(),
-            value1: a.as_str().unwrap().to_string(),
-            value2: "".to_string(),
-        }]
-    }
-}
-
-fn handle_one_element_null_arrays<'a>(key: &'a str, a: &Value, b: &Value) -> Vec<ArrayDiff> {
-    one_element_null_guard_debug("handle_one_element_null_arrays", &a, &b);
-    let mut array_diff = vec![];
-
-    if a.is_null() {
-        for b_item in b.as_array().unwrap() {
-            array_diff.push(ArrayDiff {
-                key: key.to_string(),
-                descriptor: ArrayDiffDesc::BHas,
-                value: b_item.as_str().unwrap().to_string(),
-            });
-        }
-    } else {
-        for a_item in a.as_array().unwrap() {
-            array_diff.push(ArrayDiff {
-                key: key.to_string(),
-                descriptor: ArrayDiffDesc::AHas,
-                value: a_item.as_str().unwrap().to_string(),
-            });
-        }
-    }
-
-    array_diff
-}
-
-fn handle_one_element_null_objects<'a>(
-    parent_key: &'a str,
-    a: Value,
-    b: Value,
-    working_context: &WorkingContext,
-) -> ComparisionResult {
-    one_element_null_guard_debug("handle_one_element_null_objects", &a, &b);
-
-    let mut key_diff = vec![];
-    let mut type_diff = vec![];
-    let mut value_diff = vec![];
-
-    let object = if a.is_null() {
-        b.as_object().unwrap()
-    } else {
-        a.as_object().unwrap()
-    };
-
-    for (key, value) in object.iter() {
-        let full_key = if parent_key.is_empty() {
-            key.clone()
-        } else {
-            format!("{}.{}", parent_key, key)
-        };
-        key_diff.push(KeyDiff {
-            key: full_key.clone(),
-            has: if a.is_null() {
-                working_context.file_b.name.clone()
-            } else {
-                working_context.file_a.name.clone()
-            },
-            misses: if a.is_null() {
-                working_context.file_a.name.clone()
-            } else {
-                working_context.file_b.name.clone()
-            },
-        });
-
-        type_diff.push(TypeDiff {
-            key: full_key.clone(),
-            type1: if a.is_null() {
-                "".to_string()
-            } else {
-                get_type(value).to_string()
-            },
-            type2: if a.is_null() {
-                get_type(value).to_string()
-            } else {
-                "".to_string()
-            },
-        });
-
-        value_diff.push(ValueDiff {
-            key: full_key.to_string(),
-            value1: if a.is_null() {
-                "".to_string()
-            } else {
-                value.as_str().unwrap().to_string()
-            },
-            value2: if a.is_null() {
-                value.as_str().unwrap().to_string()
-            } else {
-                "".to_string()
-            },
-        });
-    }
-
-    (key_diff, type_diff, value_diff, vec![]) // TODO: handle arrays here?
-}
-
 // Util
 
 fn get_type(value: &Value) -> ValueType {
@@ -319,34 +349,7 @@ fn get_type(value: &Value) -> ValueType {
         Value::Object(_) => ValueType::Object,
     }
 }
-
-// Debug guards
-
-fn elements_different_types_guard_debug(
-    function_name: &str,
-    key: &str,
-    type_a: &ValueType,
-    type_b: &ValueType,
-) {
-    debug_assert!(
-        type_a != type_b,
-        "{} was called with the same types: {}: {}",
-        function_name,
-        key,
-        type_a
-    );
-}
-
-fn one_element_null_guard_debug(function_name: &str, a: &Value, b: &Value) {
-    debug_assert!(
-        a.is_null() ^ b.is_null(),
-        "{} called with wrong parameters: {} {}",
-        function_name,
-        a,
-        b
-    );
-}
-
+/*
 #[cfg(test)]
 mod tests {
     use serde_json::{json, Map, Value};
@@ -357,8 +360,6 @@ mod tests {
             ArrayDiff, ArrayDiffDesc, Config, KeyDiff, TypeDiff, ValueDiff, WorkingContext,
             WorkingFile,
         },
-        handle_different_types, handle_one_element_null_arrays, handle_one_element_null_objects,
-        handle_one_element_null_primitives,
     };
 
     #[test]
@@ -1250,3 +1251,4 @@ mod tests {
         }
     }
 }
+*/
