@@ -24,7 +24,7 @@ fn main() -> Result<(), ()> {
         },
     };
     let (key_diff, type_diff, value_diff, array_diff) =
-        compare_objects("", &data1, &data2, &working_context);
+        compare_objects("", &data1, &data2, &working_context, false); // TODO: array_same_order config
 
     let key_diff_table = create_table_key_diff(key_diff, &working_context);
     println!("{}", key_diff_table.render());

@@ -25,6 +25,7 @@ pub fn compare_objects<'a>(
     a: &'a Map<String, Value>,
     b: &'a Map<String, Value>,
     working_context: &WorkingContext,
+    array_same_order: bool, // TODO: Config object
 ) -> ComparisionResult {
     let mut key_diff = vec![];
     let mut type_diff = vec![];
@@ -54,7 +55,13 @@ pub fn compare_objects<'a>(
                 mut field_type_diff,
                 mut field_value_diff,
                 mut field_array_diff,
-            ) = compare_field(key.as_str(), a_value, b_value, working_context);
+            ) = compare_field(
+                key.as_str(),
+                a_value,
+                b_value,
+                working_context,
+                array_same_order,
+            );
             {
                 key_diff.append(&mut field_key_diff);
                 type_diff.append(&mut field_type_diff);
@@ -112,6 +119,7 @@ fn compare_arrays<'a>(
                     a_item,
                     &b[i],
                     working_context,
+                    same_order,
                 );
 
                 key_diff.append(&mut item_key_diff);
@@ -350,11 +358,13 @@ fn one_element_null_guard_debug(function_name: &str, a: &Value, b: &Value) {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use serde_json::{json, Map, Value};
 
     use crate::{
-        compare_arrays, compare_primitives,
-        diff_types::{ArrayDiff, ArrayDiffDesc, TypeDiff, ValueDiff, WorkingContext, WorkingFile},
+        compare_arrays, compare_objects, compare_primitives,
+        diff_types::{
+            ArrayDiff, ArrayDiffDesc, KeyDiff, TypeDiff, ValueDiff, WorkingContext, WorkingFile,
+        },
         handle_different_types, handle_one_element_null_arrays, handle_one_element_null_objects,
         handle_one_element_null_primitives,
     };
@@ -607,6 +617,460 @@ mod tests {
 
         // act & assert (#[should_panic macro])
         handle_different_types("key", &a, &b);
+    }
+
+    #[test]
+    fn test_compare_objects_array_same_order_same_length() {
+        // arrange
+        let object_a: Map<String, Value> = json!({
+            "key_diff_a_has": "key_diff_a_has",
+            "type_diff_a_string_b_int": "type_diff_a_string_b_int",
+            "value_diff": "a",
+            "array_diff_same_order": [
+                1, 2, 3, 4, 5
+            ],
+            "nested_object": {
+                "key_diff_a_has": "key_diff_a_has",
+                "type_diff_a_string_b_int": "type_diff_a_string_b_int",
+                "value_diff": "a",
+                "array_diff_same_order": [
+                    1, 2, 3, 4, 5
+                ],
+            }
+        })
+        .as_object()
+        .unwrap()
+        .to_owned();
+        let object_b: Map<String, Value> = json!({
+            "type_diff_a_string_b_int": 2,
+            "value_diff": "b",
+            "array_diff_same_order": [
+                1, 2, 6, 4, 5
+            ],
+            "nested_object": {
+                "type_diff_a_string_b_int": 2,
+                "value_diff": "b",
+                "array_diff_same_order": [
+                    1, 2, 6, 4, 5
+                ],
+            }
+        })
+        .as_object()
+        .unwrap()
+        .to_owned();
+
+        let expected_key_diffs = vec![
+            KeyDiff {
+                key: "key_diff_a_has".to_string(),
+                has: "a.json".to_string(),
+                misses: "b.json".to_string(),
+            },
+            KeyDiff {
+                key: "nested_object.key_diff_a_has".to_string(),
+                has: "a.json".to_string(),
+                misses: "b.json".to_string(),
+            },
+        ];
+
+        let expected_type_diffs = vec![
+            TypeDiff {
+                key: "type_diff_a_string_b_int".to_string(),
+                type1: "string".to_string(),
+                type2: "number".to_string(),
+            },
+            TypeDiff {
+                key: "nested_object.type_diff_a_string_b_int".to_string(),
+                type1: "string".to_string(),
+                type2: "number".to_string(),
+            },
+        ];
+
+        let expected_value_diffs = vec![
+            ValueDiff {
+                key: "value_diff".to_string(),
+                value1: "a".to_string(),
+                value2: "b".to_string(),
+            },
+            ValueDiff {
+                key: "nested_object.value_diff".to_string(),
+                value1: "a".to_string(),
+                value2: "b".to_string(),
+            },
+            ValueDiff {
+                key: "array_diff_same_order[2]".to_string(),
+                value1: 3.to_string(),
+                value2: 6.to_string(),
+            },
+            ValueDiff {
+                key: "nested_object.array_diff_same_order[2]".to_string(),
+                value1: 3.to_string(),
+                value2: 6.to_string(),
+            },
+        ];
+
+        let expected_array_diffs: Vec<ArrayDiff> = vec![];
+
+        let working_context = &WorkingContext {
+            file_a: WorkingFile {
+                name: "a.json".to_string(),
+            },
+            file_b: WorkingFile {
+                name: "b.json".to_string(),
+            },
+        };
+
+        // act
+        let (key_diffs, type_diffs, value_diffs, array_diffs) =
+            compare_objects("", &object_a, &object_b, working_context, true);
+
+        // assert
+        assert_eq!(key_diffs.len(), expected_key_diffs.len());
+        assert!(key_diffs.iter().eq(expected_key_diffs.iter()));
+
+        assert_eq!(type_diffs.len(), expected_type_diffs.len());
+        assert!(type_diffs
+            .iter()
+            .all(|diff| expected_type_diffs.contains(diff)));
+
+        assert_eq!(value_diffs.len(), expected_value_diffs.len());
+        assert!(value_diffs
+            .iter()
+            .all(|diff| expected_value_diffs.contains(diff)));
+
+        assert_eq!(array_diffs.len(), expected_array_diffs.len());
+        assert!(array_diffs
+            .iter()
+            .all(|diff| expected_array_diffs.contains(diff)));
+    }
+
+    #[test]
+    fn test_compare_objects_array_same_order_different_length() {
+        // arrange
+        let object_a: Map<String, Value> = json!({
+            "key_diff_a_has": "key_diff_a_has",
+            "type_diff_a_string_b_int": "type_diff_a_string_b_int",
+            "value_diff": "a",
+            "array_diff_same_order": [
+                1, 2, 3, 4, 5, 8
+            ],
+            "nested_object": {
+                "key_diff_a_has": "key_diff_a_has",
+                "type_diff_a_string_b_int": "type_diff_a_string_b_int",
+                "value_diff": "a",
+                "array_diff_same_order": [
+                    1, 2, 3, 4, 5, 8
+                ],
+            }
+        })
+        .as_object()
+        .unwrap()
+        .to_owned();
+        let object_b: Map<String, Value> = json!({
+            "type_diff_a_string_b_int": 2,
+            "value_diff": "b",
+            "array_diff_same_order": [
+                1, 2, 6, 4, 5
+            ],
+            "nested_object": {
+                "type_diff_a_string_b_int": 2,
+                "value_diff": "b",
+                "array_diff_same_order": [
+                    1, 2, 6, 4, 5
+                ],
+            }
+        })
+        .as_object()
+        .unwrap()
+        .to_owned();
+
+        let expected_key_diffs = vec![
+            KeyDiff {
+                key: "key_diff_a_has".to_string(),
+                has: "a.json".to_string(),
+                misses: "b.json".to_string(),
+            },
+            KeyDiff {
+                key: "nested_object.key_diff_a_has".to_string(),
+                has: "a.json".to_string(),
+                misses: "b.json".to_string(),
+            },
+        ];
+
+        let expected_type_diffs = vec![
+            TypeDiff {
+                key: "type_diff_a_string_b_int".to_string(),
+                type1: "string".to_string(),
+                type2: "number".to_string(),
+            },
+            TypeDiff {
+                key: "nested_object.type_diff_a_string_b_int".to_string(),
+                type1: "string".to_string(),
+                type2: "number".to_string(),
+            },
+        ];
+
+        let expected_value_diffs = vec![
+            ValueDiff {
+                key: "value_diff".to_string(),
+                value1: "a".to_string(),
+                value2: "b".to_string(),
+            },
+            ValueDiff {
+                key: "nested_object.value_diff".to_string(),
+                value1: "a".to_string(),
+                value2: "b".to_string(),
+            },
+        ];
+
+        let expected_array_diffs: Vec<ArrayDiff> = vec![
+            ArrayDiff {
+                key: "array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "8".to_string(),
+            },
+            ArrayDiff {
+                key: "array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "8".to_string(),
+            },
+            ArrayDiff {
+                key: "nested_object.array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "8".to_string(),
+            },
+            ArrayDiff {
+                key: "nested_object.array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "8".to_string(),
+            },
+            ArrayDiff {
+                key: "array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "3".to_string(),
+            },
+            ArrayDiff {
+                key: "array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "3".to_string(),
+            },
+            ArrayDiff {
+                key: "nested_object.array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "3".to_string(),
+            },
+            ArrayDiff {
+                key: "nested_object.array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "3".to_string(),
+            },
+            ArrayDiff {
+                key: "array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::BHas,
+                value: "6".to_string(),
+            },
+            ArrayDiff {
+                key: "array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::AMisses,
+                value: "6".to_string(),
+            },
+            ArrayDiff {
+                key: "nested_object.array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::BHas,
+                value: "6".to_string(),
+            },
+            ArrayDiff {
+                key: "nested_object.array_diff_same_order".to_string(),
+                descriptor: ArrayDiffDesc::AMisses,
+                value: "6".to_string(),
+            },
+        ];
+
+        let working_context = &WorkingContext {
+            file_a: WorkingFile {
+                name: "a.json".to_string(),
+            },
+            file_b: WorkingFile {
+                name: "b.json".to_string(),
+            },
+        };
+
+        // act
+        let (key_diffs, type_diffs, value_diffs, array_diffs) =
+            compare_objects("", &object_a, &object_b, working_context, true);
+
+        // assert
+        assert_eq!(key_diffs.len(), expected_key_diffs.len());
+        assert!(key_diffs.iter().eq(expected_key_diffs.iter()));
+
+        assert_eq!(type_diffs.len(), expected_type_diffs.len());
+        assert!(type_diffs
+            .iter()
+            .all(|diff| expected_type_diffs.contains(diff)));
+
+        assert_eq!(value_diffs.len(), expected_value_diffs.len());
+        assert!(value_diffs
+            .iter()
+            .all(|diff| expected_value_diffs.contains(diff)));
+
+        assert_eq!(array_diffs.len(), expected_array_diffs.len());
+        assert!(array_diffs
+            .iter()
+            .all(|diff| expected_array_diffs.contains(diff)));
+    }
+
+    #[test]
+    fn test_compare_objects_array_different_order_same_length() {
+        // arrange
+        let object_a: Map<String, Value> = json!({
+            "key_diff_a_has": "key_diff_a_has",
+            "type_diff_a_string_b_int": "type_diff_a_string_b_int",
+            "value_diff": "a",
+            "array_diff_different_order": [
+                1, 2, 3, 4, 5
+            ],
+            "nested_object": {
+                "key_diff_a_has": "key_diff_a_has",
+                "type_diff_a_string_b_int": "type_diff_a_string_b_int",
+                "value_diff": "a",
+                "array_diff_different_order": [
+                    1, 2, 3, 4, 5
+                ],
+            }
+        })
+        .as_object()
+        .unwrap()
+        .to_owned();
+        let object_b: Map<String, Value> = json!({
+            "type_diff_a_string_b_int": 2,
+            "value_diff": "b",
+            "array_diff_different_order": [
+                1, 2, 6, 4, 5
+            ],
+            "nested_object": {
+                "type_diff_a_string_b_int": 2,
+                "value_diff": "b",
+                "array_diff_different_order": [
+                    1, 2, 6, 4, 5
+                ],
+            }
+        })
+        .as_object()
+        .unwrap()
+        .to_owned();
+
+        let expected_key_diffs = vec![
+            KeyDiff {
+                key: "key_diff_a_has".to_string(),
+                has: "a.json".to_string(),
+                misses: "b.json".to_string(),
+            },
+            KeyDiff {
+                key: "nested_object.key_diff_a_has".to_string(),
+                has: "a.json".to_string(),
+                misses: "b.json".to_string(),
+            },
+        ];
+
+        let expected_type_diffs = vec![
+            TypeDiff {
+                key: "type_diff_a_string_b_int".to_string(),
+                type1: "string".to_string(),
+                type2: "number".to_string(),
+            },
+            TypeDiff {
+                key: "nested_object.type_diff_a_string_b_int".to_string(),
+                type1: "string".to_string(),
+                type2: "number".to_string(),
+            },
+        ];
+
+        let expected_value_diffs = vec![
+            ValueDiff {
+                key: "value_diff".to_string(),
+                value1: "a".to_string(),
+                value2: "b".to_string(),
+            },
+            ValueDiff {
+                key: "nested_object.value_diff".to_string(),
+                value1: "a".to_string(),
+                value2: "b".to_string(),
+            },
+        ];
+
+        let expected_array_diffs: Vec<ArrayDiff> = vec![
+            ArrayDiff {
+                key: "array_diff_different_order".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "3".to_string(),
+            },
+            ArrayDiff {
+                key: "array_diff_different_order".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "3".to_string(),
+            },
+            ArrayDiff {
+                key: "nested_object.array_diff_different_order".to_string(),
+                descriptor: ArrayDiffDesc::AHas,
+                value: "3".to_string(),
+            },
+            ArrayDiff {
+                key: "nested_object.array_diff_different_order".to_string(),
+                descriptor: ArrayDiffDesc::BMisses,
+                value: "3".to_string(),
+            },
+            ArrayDiff {
+                key: "array_diff_different_order".to_string(),
+                descriptor: ArrayDiffDesc::BHas,
+                value: "6".to_string(),
+            },
+            ArrayDiff {
+                key: "array_diff_different_order".to_string(),
+                descriptor: ArrayDiffDesc::AMisses,
+                value: "6".to_string(),
+            },
+            ArrayDiff {
+                key: "nested_object.array_diff_different_order".to_string(),
+                descriptor: ArrayDiffDesc::BHas,
+                value: "6".to_string(),
+            },
+            ArrayDiff {
+                key: "nested_object.array_diff_different_order".to_string(),
+                descriptor: ArrayDiffDesc::AMisses,
+                value: "6".to_string(),
+            },
+        ];
+
+        let working_context = &WorkingContext {
+            file_a: WorkingFile {
+                name: "a.json".to_string(),
+            },
+            file_b: WorkingFile {
+                name: "b.json".to_string(),
+            },
+        };
+
+        // act
+        let (key_diffs, type_diffs, value_diffs, array_diffs) =
+            compare_objects("", &object_a, &object_b, working_context, false);
+
+        // assert
+        assert_eq!(key_diffs.len(), expected_key_diffs.len());
+        assert!(key_diffs.iter().eq(expected_key_diffs.iter()));
+
+        assert_eq!(type_diffs.len(), expected_type_diffs.len());
+        assert!(type_diffs
+            .iter()
+            .all(|diff| expected_type_diffs.contains(diff)));
+
+        assert_eq!(value_diffs.len(), expected_value_diffs.len());
+        assert!(value_diffs
+            .iter()
+            .all(|diff| expected_value_diffs.contains(diff)));
+
+        assert_eq!(array_diffs.len(), expected_array_diffs.len());
+        assert!(array_diffs
+            .iter()
+            .all(|diff| expected_array_diffs.contains(diff)));
     }
 
     #[test]

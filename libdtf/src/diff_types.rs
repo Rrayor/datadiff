@@ -41,13 +41,14 @@ pub struct WorkingContext {
     pub file_b: WorkingFile,
 }
 
+#[derive(PartialEq, Debug)]
 pub struct KeyDiff {
     pub key: String,
     pub has: String,
     pub misses: String,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct ValueDiff {
     pub key: String,
     pub value1: String, // TODO: would be better as Option

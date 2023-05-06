@@ -14,6 +14,7 @@ pub fn compare_field<'a>(
     a_value: &'a Value,
     b_value: &'a Value,
     working_context: &WorkingContext,
+    array_same_order: bool, // TODO: config object
 ) -> ComparisionResult {
     match (a_value, b_value) {
         // Primitives of same type
@@ -39,10 +40,10 @@ pub fn compare_field<'a>(
 
         // Composites of same type
         (Value::Array(a_value), Value::Array(b_value)) => {
-            compare_arrays(key, a_value, b_value, working_context, false) // TODO: same_order argument
+            compare_arrays(key, a_value, b_value, working_context, array_same_order)
         }
         (Value::Object(a_value), Value::Object(b_value)) => {
-            compare_objects(key, a_value, b_value, working_context)
+            compare_objects(key, a_value, b_value, working_context, array_same_order)
         }
 
         // One value is null primitives
