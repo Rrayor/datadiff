@@ -360,8 +360,8 @@ mod tests {
     use serde_json::json;
 
     use crate::{
-        diff_types::{Config, KeyDiff, WorkingContext, WorkingFile},
-        find_key_diffs,
+        diff_types::{Config, KeyDiff, TypeDiff, WorkingContext, WorkingFile},
+        find_key_diffs, find_type_diffs,
     };
 
     #[test]
@@ -386,7 +386,7 @@ mod tests {
             }
         });
 
-        let expected: Vec<KeyDiff> = vec![
+        let expected = vec![
             KeyDiff::new(
                 "a_has".to_owned(),
                 file_name_a.to_owned(),
@@ -409,10 +409,7 @@ mod tests {
             ),
         ];
 
-        let config = Config::new(false);
-        let working_file_a = WorkingFile::new(file_name_a.to_owned());
-        let working_file_b = WorkingFile::new(file_name_b.to_owned());
-        let working_context = WorkingContext::new(working_file_a, working_file_b, config);
+        let working_context = create_test_working_context(file_name_a, file_name_b, false);
 
         // act
         let result = find_key_diffs(
@@ -426,7 +423,68 @@ mod tests {
         assert_array(&expected, &result);
     }
 
+    #[test]
+    fn test_find_type_diffs_no_array_same_order() {
+        // arrange
+        let file_name_a = "a.json";
+        let file_name_b = "b.json";
+
+        let a = json!({
+            "a_string_b_int": "a_string_b_int",
+            "both_string": "both_string",
+            "nested": {
+                "a_bool_b_string": true,
+                "both_number": 4
+            }
+        });
+        let b = json!({
+            "a_string_b_int": 2,
+            "both_string": "both_string",
+            "nested": {
+                "a_bool_b_string": "a_bool_b_string",
+                "both_number": 1
+            }
+        });
+
+        let expected = vec![
+            TypeDiff::new(
+                "a_string_b_int".to_owned(),
+                "string".to_owned(),
+                "number".to_owned(),
+            ),
+            TypeDiff::new(
+                "nested.a_bool_b_string".to_owned(),
+                "bool".to_owned(),
+                "string".to_owned(),
+            ),
+        ];
+
+        let working_context = create_test_working_context(file_name_a, file_name_b, false);
+
+        // act
+        let result = find_type_diffs(
+            "",
+            &a.as_object().unwrap(),
+            &b.as_object().unwrap(),
+            &working_context,
+        );
+
+        // assert
+        assert_array(&expected, &result);
+    }
+
     // Test utils
+
+    fn create_test_working_context(
+        file_name_a: &str,
+        file_name_b: &str,
+        array_same_order: bool,
+    ) -> WorkingContext {
+        let config = Config::new(array_same_order);
+        let working_file_a = WorkingFile::new(file_name_a.to_owned());
+        let working_file_b = WorkingFile::new(file_name_b.to_owned());
+        WorkingContext::new(working_file_a, working_file_b, config)
+    }
 
     fn assert_array<T: PartialEq>(expected: &Vec<T>, result: &Vec<T>) {
         assert_eq!(expected.len(), result.len());

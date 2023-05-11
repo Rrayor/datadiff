@@ -1,6 +1,3 @@
 [workspace]
 
-members = [
-    "libdtf",
-    "dtfterminal",
-]
+members = ["libdtf", "dtfterminal"]
