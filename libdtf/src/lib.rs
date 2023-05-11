@@ -28,7 +28,12 @@ pub fn find_key_diffs<'a>(
 
     let mut b_keys = HashSet::new();
     for b_key in b.keys() {
-        b_keys.insert(b_key);
+        let key = if key_in.is_empty() {
+            b_key.to_string()
+        } else {
+            format!("{}.{}", key_in, b_key)
+        };
+        b_keys.insert(key);
     }
 
     for (a_key, a_value) in a.into_iter() {
@@ -39,7 +44,7 @@ pub fn find_key_diffs<'a>(
         };
 
         if let Some(b_value) = b.get(a_key) {
-            b_keys.remove(a_key);
+            b_keys.remove(&key);
 
             key_diff.append(&mut find_key_diffs_in_values(
                 &key,
@@ -349,9 +354,86 @@ fn get_type(value: &Value) -> ValueType {
         Value::Object(_) => ValueType::Object,
     }
 }
-/*
+
 #[cfg(test)]
 mod tests {
+    use serde_json::json;
+
+    use crate::{
+        diff_types::{Config, KeyDiff, WorkingContext, WorkingFile},
+        find_key_diffs,
+    };
+
+    #[test]
+    fn test_find_key_diffs() {
+        // arrange
+        let file_name_a = "a.json";
+        let file_name_b = "b.json";
+        let a = json!({
+            "a_has": "a_has",
+            "both_have": "both_have",
+            "nested": {
+                "a_has": "a_has",
+                "both_have": "both_have"
+            }
+        });
+        let b = json!({
+            "b_has": "b_has",
+            "both_have": "both_have",
+            "nested": {
+                "b_has": "b_has",
+                "both_have": "both_have"
+            }
+        });
+
+        let expected: Vec<KeyDiff> = vec![
+            KeyDiff::new(
+                "a_has".to_owned(),
+                file_name_a.to_owned(),
+                file_name_b.to_owned(),
+            ),
+            KeyDiff::new(
+                "nested.a_has".to_owned(),
+                file_name_a.to_owned(),
+                file_name_b.to_owned(),
+            ),
+            KeyDiff::new(
+                "b_has".to_owned(),
+                file_name_b.to_owned(),
+                file_name_a.to_owned(),
+            ),
+            KeyDiff::new(
+                "nested.b_has".to_owned(),
+                file_name_b.to_owned(),
+                file_name_a.to_owned(),
+            ),
+        ];
+
+        let config = Config::new(false);
+        let working_file_a = WorkingFile::new(file_name_a.to_owned());
+        let working_file_b = WorkingFile::new(file_name_b.to_owned());
+        let working_context = WorkingContext::new(working_file_a, working_file_b, config);
+
+        // act
+        let result = find_key_diffs(
+            "",
+            &a.as_object().unwrap(),
+            &b.as_object().unwrap(),
+            &working_context,
+        );
+
+        // assert
+        assert_array(&expected, &result);
+    }
+
+    // Test utils
+
+    fn assert_array<T: PartialEq>(expected: &Vec<T>, result: &Vec<T>) {
+        assert_eq!(expected.len(), result.len());
+        assert!(expected.into_iter().all(|item| result.contains(&item)));
+    }
+}
+/*
     use serde_json::{json, Map, Value};
 
     use crate::{

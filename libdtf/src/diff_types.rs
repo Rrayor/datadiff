@@ -50,14 +50,36 @@ pub struct Config {
     pub array_same_order: bool,
 }
 
+impl Config {
+    pub fn new(array_same_order: bool) -> Config {
+        Config { array_same_order }
+    }
+}
+
 pub struct WorkingFile {
     pub name: String,
+}
+
+impl WorkingFile {
+    pub fn new(name: String) -> WorkingFile {
+        WorkingFile { name }
+    }
 }
 
 pub struct WorkingContext {
     pub file_a: WorkingFile,
     pub file_b: WorkingFile,
     pub config: Config,
+}
+
+impl WorkingContext {
+    pub fn new(file_a: WorkingFile, file_b: WorkingFile, config: Config) -> WorkingContext {
+        WorkingContext {
+            file_a,
+            file_b,
+            config,
+        }
+    }
 }
 
 #[derive(PartialEq, Debug)]
