@@ -94,12 +94,12 @@ fn find_key_diffs_in_values(
         && b.is_array()
         && a.as_array().unwrap().len() == b.as_array().unwrap().len()
     {
-        for (index, _) in a.as_array().unwrap().into_iter().enumerate() {
+        for (index, a_item) in a.as_array().unwrap().into_iter().enumerate() {
             let array_key = format!("{}[{}]", key_in, index);
             key_diff.append(&mut find_key_diffs_in_values(
                 &array_key,
-                a,
-                b,
+                a_item,
+                &b.as_array().unwrap()[index],
                 working_context,
             ));
         }
@@ -158,12 +158,12 @@ fn find_type_diffs_in_values(
         && b.is_array()
         && a.as_array().unwrap().len() == b.as_array().unwrap().len()
     {
-        for (index, _) in a.as_array().unwrap().into_iter().enumerate() {
+        for (index, a_item) in a.as_array().unwrap().into_iter().enumerate() {
             let array_key = format!("{}[{}]", key_in, index);
             type_diff.append(&mut find_type_diffs_in_values(
                 &array_key,
-                a,
-                b,
+                a_item,
+                &b.as_array().unwrap()[index],
                 working_context,
             ));
         }
@@ -232,12 +232,12 @@ fn find_value_diffs_in_values<'a>(
         && b.is_array()
         && a.as_array().unwrap().len() == b.as_array().unwrap().len()
     {
-        for (index, item) in a.as_array().unwrap().into_iter().enumerate() {
+        for (index, a_item) in a.as_array().unwrap().into_iter().enumerate() {
             let array_key = format!("{}[{}]", key_in, index);
             value_diff.append(&mut find_value_diffs_in_values(
                 &array_key,
-                &item,
-                &b[&index],
+                &a_item,
+                &b.as_array().unwrap()[index],
                 working_context,
             ));
         }
