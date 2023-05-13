@@ -4,6 +4,7 @@ use libdtf::{
     diff_types::{self, Config},
     find_array_diffs, find_key_diffs, find_type_diffs, find_value_diffs, read_json_file,
 };
+use serde_json::Value;
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
@@ -56,18 +57,25 @@ fn main() -> Result<(), ()> {
     let value_diff = find_value_diffs("", &data1, &data2, &working_context);
     let array_diff = find_array_diffs("", &data1, &data2, &working_context);
 
-    let key_diff_table = create_table_key_diff(key_diff, &working_context);
-    println!("{}", key_diff_table.render());
+    if !key_diff.is_empty() {
+        let key_diff_table = create_table_key_diff(key_diff, &working_context);
+        println!("{}", key_diff_table.render());
+    }
 
-    let type_diff_table = create_table_type_diff(type_diff, &working_context);
-    println!("{}", type_diff_table.render());
+    if !type_diff.is_empty() {
+        let type_diff_table = create_table_type_diff(type_diff, &working_context);
+        println!("{}", type_diff_table.render());
+    }
 
-    let value_diff_table = create_table_value_diff(value_diff, &working_context);
-    println!("{}", value_diff_table.render());
+    if !value_diff.is_empty() {
+        let value_diff_table = create_table_value_diff(value_diff, &working_context);
+        println!("{}", value_diff_table.render());
+    }
 
-    let array_diff_table = create_table_array_diff(array_diff, &working_context);
-    println!("{}", array_diff_table.render());
-
+    if !array_diff.is_empty() {
+        let array_diff_table = create_table_array_diff(array_diff, &working_context);
+        println!("{}", array_diff_table.render());
+    }
     Ok(())
 }
 
@@ -178,8 +186,8 @@ fn add_value_table_rows(table: &mut Table, data: &Vec<ValueDiff>) {
     for vd in data {
         table.add_row(Row::new(vec![
             TableCell::new(&vd.key),
-            TableCell::new(&vd.value1),
-            TableCell::new(&vd.value2),
+            TableCell::new(&sanitize_json_str(&vd.value1)),
+            TableCell::new(&sanitize_json_str(&vd.value2)),
         ]));
     }
 }
@@ -213,12 +221,7 @@ fn add_array_table_header(table: &mut Table, working_context: &WorkingContext) {
 
 fn add_array_table_rows(table: &mut Table, data: &Vec<ArrayDiff>) {
     for ad in data {
-        let value_str = ad
-            .value
-            .replace("{", "{\n")
-            .replace("},", "\n},\n")
-            .replace("\"}", "\"\n}")
-            .replace(",", ",\n");
+        let value_str = sanitize_json_str(&ad.value);
         table.add_row(Row::new(vec![
             TableCell::new(&ad.key),
             TableCell::new(get_array_table_cell_value(&ad.descriptor, &value_str)),
@@ -233,5 +236,12 @@ fn get_array_table_cell_value<'a>(descriptor: &'a ArrayDiffDesc, value_str: &'a 
         ArrayDiffDesc::AMisses => value_str,
         ArrayDiffDesc::BHas => value_str,
         ArrayDiffDesc::BMisses => value_str,
+    }
+}
+
+fn sanitize_json_str(json_str: &str) -> String {
+    match serde_json::from_str::<Value>(json_str) {
+        Ok(json_value) => serde_json::to_string_pretty(&json_value).unwrap_or(json_str.to_owned()),
+        Err(_) => json_str.to_owned(),
     }
 }

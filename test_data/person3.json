@@ -1,6 +1,6 @@
 {
   "name": "Sarah Smith",
-  "age": 30,
+  "age": "30",
   "address": {
     "street": "321 Oak St",
     "city": "Anytown",
