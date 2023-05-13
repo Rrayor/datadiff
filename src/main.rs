@@ -31,16 +31,13 @@ struct Arguments {
 fn main() -> Result<(), ()> {
     let args = Arguments::parse();
     let data1 = read_json_file(&args.file_name1)
-        .expect(&format!("Couldn't read file: {}", &args.file_name1));
+        .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.file_name1));
     let data2 = read_json_file(&args.file_name2)
-        .expect(&format!("Couldn't read file: {}", &args.file_name2));
+        .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.file_name2));
 
-    let array_same_order = match args.array_same_order {
-        Some(value) => value,
-        None => false,
+    let config = Config {
+        array_same_order: args.array_same_order.unwrap_or(false),
     };
-
-    let config = Config { array_same_order };
 
     let working_context = WorkingContext {
         file_a: WorkingFile {
@@ -84,8 +81,8 @@ fn create_table_key_diff<'a>(data: Vec<KeyDiff>, working_context: &WorkingContex
     table.max_column_width = 80;
     table.style = TableStyle::extended();
 
-    add_key_table_header(&mut table, &working_context);
-    add_key_table_rows(&mut table, &data, &working_context);
+    add_key_table_header(&mut table, working_context);
+    add_key_table_rows(&mut table, &data, working_context);
 
     table
 }
@@ -107,8 +104,8 @@ fn add_key_table_rows(table: &mut Table, data: &[KeyDiff], working_context: &Wor
     for kd in data {
         table.add_row(Row::new(vec![
             TableCell::new(&kd.key),
-            TableCell::new(check_has(&working_context.file_a.name, &kd)),
-            TableCell::new(check_has(&working_context.file_b.name, &kd)),
+            TableCell::new(check_has(&working_context.file_a.name, kd)),
+            TableCell::new(check_has(&working_context.file_b.name, kd)),
         ]));
     }
 }
@@ -126,7 +123,7 @@ fn create_table_type_diff<'a>(data: Vec<TypeDiff>, working_context: &WorkingCont
     table.max_column_width = 80;
     table.style = TableStyle::extended();
 
-    add_type_table_header(&mut table, &working_context);
+    add_type_table_header(&mut table, working_context);
     add_type_table_rows(&mut table, &data);
 
     table
@@ -163,7 +160,7 @@ fn create_table_value_diff<'a>(
     table.max_column_width = 80;
     table.style = TableStyle::extended();
 
-    add_value_table_header(&mut table, &working_context);
+    add_value_table_header(&mut table, working_context);
     add_value_table_rows(&mut table, &data);
 
     table
@@ -200,7 +197,7 @@ fn create_table_array_diff<'a>(
     table.max_column_width = 80;
     table.style = TableStyle::extended();
 
-    add_array_table_header(&mut table, &working_context);
+    add_array_table_header(&mut table, working_context);
     add_array_table_rows(&mut table, &data);
 
     table
