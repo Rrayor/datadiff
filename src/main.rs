@@ -4,7 +4,7 @@ use libdtf::{
     diff_types::{self, Config},
     find_array_diffs, find_key_diffs, find_type_diffs, find_value_diffs, read_json_file,
 };
-use serde_json::Value;
+use serde_json::{Map, Value};
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
@@ -29,31 +29,56 @@ struct Arguments {
 }
 
 fn main() -> Result<(), ()> {
+    let (data1, data2, working_context) = parse_args();
+    let (key_diff, type_diff, value_diff, array_diff) =
+        collect_data(&data1, &data2, &working_context);
+    render_tables(
+        &key_diff,
+        &type_diff,
+        &value_diff,
+        &array_diff,
+        &working_context,
+    );
+    Ok(())
+}
+
+fn parse_args() -> (Map<String, Value>, Map<String, Value>, WorkingContext) {
     let args = Arguments::parse();
     let data1 = read_json_file(&args.file_name1)
         .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.file_name1));
     let data2 = read_json_file(&args.file_name2)
         .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.file_name2));
 
+    let file_a = WorkingFile::new(args.file_name1.to_owned());
+    let file_b = WorkingFile::new(args.file_name2.to_owned());
     let config = Config {
         array_same_order: args.array_same_order.unwrap_or(false),
     };
+    let working_context = WorkingContext::new(file_a, file_b, config);
 
-    let working_context = WorkingContext {
-        file_a: WorkingFile {
-            name: args.file_name1,
-        },
-        file_b: WorkingFile {
-            name: args.file_name2,
-        },
-        config,
-    };
+    (data1, data2, working_context)
+}
 
-    let key_diff = find_key_diffs("", &data1, &data2, &working_context);
-    let type_diff = find_type_diffs("", &data1, &data2, &working_context);
-    let value_diff = find_value_diffs("", &data1, &data2, &working_context);
-    let array_diff = find_array_diffs("", &data1, &data2, &working_context);
+fn collect_data(
+    data1: &Map<String, Value>,
+    data2: &Map<String, Value>,
+    working_context: &WorkingContext,
+) -> (Vec<KeyDiff>, Vec<TypeDiff>, Vec<ValueDiff>, Vec<ArrayDiff>) {
+    let key_diff = find_key_diffs("", data1, data2, working_context);
+    let type_diff = find_type_diffs("", data1, data2, working_context);
+    let value_diff = find_value_diffs("", data1, data2, working_context);
+    let array_diff = find_array_diffs("", data1, data2, working_context);
 
+    (key_diff, type_diff, value_diff, array_diff)
+}
+
+fn render_tables(
+    key_diff: &Vec<KeyDiff>,
+    type_diff: &Vec<TypeDiff>,
+    value_diff: &Vec<ValueDiff>,
+    array_diff: &Vec<ArrayDiff>,
+    working_context: &WorkingContext,
+) {
     if !key_diff.is_empty() {
         let key_diff_table = create_table_key_diff(key_diff, &working_context);
         println!("{}", key_diff_table.render());
@@ -73,10 +98,9 @@ fn main() -> Result<(), ()> {
         let array_diff_table = create_table_array_diff(array_diff, &working_context);
         println!("{}", array_diff_table.render());
     }
-    Ok(())
 }
 
-fn create_table_key_diff<'a>(data: Vec<KeyDiff>, working_context: &WorkingContext) -> Table<'a> {
+fn create_table_key_diff<'a>(data: &Vec<KeyDiff>, working_context: &WorkingContext) -> Table<'a> {
     let mut table = Table::new();
     table.max_column_width = 80;
     table.style = TableStyle::extended();
@@ -118,7 +142,7 @@ fn check_has(file_name: &str, key_diff: &KeyDiff) -> ColoredString {
     }
 }
 
-fn create_table_type_diff<'a>(data: Vec<TypeDiff>, working_context: &WorkingContext) -> Table<'a> {
+fn create_table_type_diff<'a>(data: &Vec<TypeDiff>, working_context: &WorkingContext) -> Table<'a> {
     let mut table = Table::new();
     table.max_column_width = 80;
     table.style = TableStyle::extended();
@@ -153,7 +177,7 @@ fn add_type_table_rows(table: &mut Table, data: &[TypeDiff]) {
 }
 
 fn create_table_value_diff<'a>(
-    data: Vec<ValueDiff>,
+    data: &Vec<ValueDiff>,
     working_context: &WorkingContext,
 ) -> Table<'a> {
     let mut table = Table::new();
@@ -190,7 +214,7 @@ fn add_value_table_rows(table: &mut Table, data: &Vec<ValueDiff>) {
 }
 
 fn create_table_array_diff<'a>(
-    data: Vec<ArrayDiff>,
+    data: &Vec<ArrayDiff>,
     working_context: &WorkingContext,
 ) -> Table<'a> {
     let mut table = Table::new();
