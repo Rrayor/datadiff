@@ -4,7 +4,6 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::BufReader;
 
-mod compare_field;
 pub mod diff_types;
 
 use diff_types::{
