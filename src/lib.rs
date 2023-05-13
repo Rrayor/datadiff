@@ -1,22 +1,7 @@
-use clap::Parser;
-
-#[derive(Default, Parser, Debug)]
-#[clap(version, about)]
-/// Find the difference in your data structures
-struct Arguments {
-    /// The file containing your first data structure
-    file_name1: String,
-    /// The file containing your second data structure
-    file_name2: String,
-    /// Do you want arrays to be the same order? If defined you will get Value differences with indexes, otherwise you will get array differences, that tell you which object contains or misses values.
-    #[clap(short)]
-    array_same_order: Option<bool>,
-}
-
+use clap::{ArgGroup, Parser};
 use colored::{Color, ColoredString, Colorize};
 use libdtf::{
-    diff_types::{self, Config},
-    find_array_diffs, find_key_diffs, find_type_diffs, find_value_diffs, read_json_file,
+    diff_types, find_array_diffs, find_key_diffs, find_type_diffs, find_value_diffs, read_json_file,
 };
 use serde_json::{Map, Value};
 use term_table::{
@@ -25,9 +10,82 @@ use term_table::{
     Table, TableStyle,
 };
 
-use diff_types::{
-    ArrayDiff, ArrayDiffDesc, KeyDiff, TypeDiff, ValueDiff, WorkingContext, WorkingFile,
-};
+use diff_types::{ArrayDiff, ArrayDiffDesc, KeyDiff, TypeDiff, ValueDiff, WorkingFile};
+
+pub type LibConfig = libdtf::diff_types::Config;
+pub type LibWorkingContext = libdtf::diff_types::WorkingContext;
+
+pub struct Config {
+    check_for_key_diffs: bool,
+    check_for_type_diffs: bool,
+    check_for_value_diffs: bool,
+    check_for_array_diffs: bool,
+}
+
+impl Config {
+    pub fn new(
+        check_for_key_diffs: bool,
+        check_for_type_diffs: bool,
+        check_for_value_diffs: bool,
+        check_for_array_diffs: bool,
+    ) -> Config {
+        Config {
+            check_for_key_diffs,
+            check_for_type_diffs,
+            check_for_value_diffs,
+            check_for_array_diffs,
+        }
+    }
+}
+
+pub struct WorkingContext {
+    lib_working_context: LibWorkingContext,
+    config: Config,
+}
+
+impl WorkingContext {
+    pub fn new(lib_working_context: LibWorkingContext, config: Config) -> WorkingContext {
+        WorkingContext {
+            lib_working_context,
+            config,
+        }
+    }
+}
+
+#[derive(Default, Parser, Debug)]
+#[clap(version, about, group(
+    ArgGroup::new("diff-options")
+        .required(true)
+        .multiple(true)
+        .args(&["key_diffs", "type_diffs", "value_diffs", "array_diffs"]),
+))]
+/// Find the difference in your data structures
+struct Arguments {
+    /// The file containing your first data structure
+    file_name1: String,
+    /// The file containing your second data structure
+    file_name2: String,
+
+    /// Check for Key differences
+    #[clap(short, default_value_t = false)]
+    key_diffs: bool,
+    /// Check for Type differences
+    #[clap(short, default_value_t = false)]
+    type_diffs: bool,
+    /// Check for Value differences
+    #[clap(short, default_value_t = false)]
+    value_diffs: bool,
+    /// Check for Array differences
+    #[clap(short, default_value_t = false)]
+    array_diffs: bool,
+
+    /// Do you want arrays to be the same order? If defined you will get Value differences with indexes, otherwise you will get array differences, that tell you which object contains or misses values.
+    #[clap(short = 'o', default_value_t = false)]
+    array_same_order: bool,
+}
+
+const CHECKMARK: &str = "\u{2713}";
+const MULTIPLY: &str = "\u{00D7}";
 
 pub fn parse_args() -> (Map<String, Value>, Map<String, Value>, WorkingContext) {
     let args = Arguments::parse();
@@ -38,10 +96,18 @@ pub fn parse_args() -> (Map<String, Value>, Map<String, Value>, WorkingContext) 
 
     let file_a = WorkingFile::new(args.file_name1.to_owned());
     let file_b = WorkingFile::new(args.file_name2.to_owned());
-    let config = Config {
-        array_same_order: args.array_same_order.unwrap_or(false),
-    };
-    let working_context = WorkingContext::new(file_a, file_b, config);
+
+    let config = Config::new(
+        args.key_diffs,
+        args.type_diffs,
+        args.value_diffs,
+        args.array_diffs,
+    );
+
+    let lib_working_context =
+        LibWorkingContext::new(file_a, file_b, LibConfig::new(args.array_same_order));
+
+    let working_context = WorkingContext::new(lib_working_context, config);
 
     (data1, data2, working_context)
 }
@@ -50,44 +116,66 @@ pub fn collect_data(
     data1: &Map<String, Value>,
     data2: &Map<String, Value>,
     working_context: &WorkingContext,
-) -> (Vec<KeyDiff>, Vec<TypeDiff>, Vec<ValueDiff>, Vec<ArrayDiff>) {
-    let key_diff = find_key_diffs("", data1, data2, working_context);
-    let type_diff = find_type_diffs("", data1, data2, working_context);
-    let value_diff = find_value_diffs("", data1, data2, working_context);
-    let array_diff = find_array_diffs("", data1, data2, working_context);
+) -> (
+    Option<Vec<KeyDiff>>,
+    Option<Vec<TypeDiff>>,
+    Option<Vec<ValueDiff>>,
+    Option<Vec<ArrayDiff>>,
+) {
+    let key_diff = working_context
+        .config
+        .check_for_key_diffs
+        .then(|| find_key_diffs("", data1, data2, &working_context.lib_working_context));
+    let type_diff = working_context
+        .config
+        .check_for_type_diffs
+        .then(|| find_type_diffs("", data1, data2, &working_context.lib_working_context));
+    let value_diff = working_context
+        .config
+        .check_for_value_diffs
+        .then(|| find_value_diffs("", data1, data2, &working_context.lib_working_context));
+    let array_diff = working_context
+        .config
+        .check_for_array_diffs
+        .then(|| find_array_diffs("", data1, data2, &working_context.lib_working_context));
 
     (key_diff, type_diff, value_diff, array_diff)
 }
 
 pub fn render_tables(
-    key_diff: &Vec<KeyDiff>,
-    type_diff: &Vec<TypeDiff>,
-    value_diff: &Vec<ValueDiff>,
-    array_diff: &Vec<ArrayDiff>,
+    key_diff: Option<Vec<KeyDiff>>,
+    type_diff: Option<Vec<TypeDiff>>,
+    value_diff: Option<Vec<ValueDiff>>,
+    array_diff: Option<Vec<ArrayDiff>>,
     working_context: &WorkingContext,
 ) {
-    if !key_diff.is_empty() {
-        let key_diff_table = create_table_key_diff(key_diff, &working_context);
-        println!("{}", key_diff_table.render());
-    }
+    key_diff.map(|diffs| {
+        let table = create_table_key_diff(&diffs, &working_context.lib_working_context);
+        println!("{}", table.render());
+    });
 
-    if !type_diff.is_empty() {
-        let type_diff_table = create_table_type_diff(type_diff, &working_context);
-        println!("{}", type_diff_table.render());
-    }
+    type_diff.map(|diffs| {
+        let table = create_table_type_diff(&diffs, &working_context.lib_working_context);
+        println!("{}", table.render());
+    });
 
-    if !value_diff.is_empty() {
-        let value_diff_table = create_table_value_diff(value_diff, &working_context);
-        println!("{}", value_diff_table.render());
-    }
+    value_diff.map(|diffs| {
+        let table = create_table_value_diff(&diffs, &working_context.lib_working_context);
+        println!("{}", table.render());
+    });
 
-    if !array_diff.is_empty() {
-        let array_diff_table = create_table_array_diff(array_diff, &working_context);
-        println!("{}", array_diff_table.render());
-    }
+    array_diff.map(|diffs| {
+        let table = create_table_array_diff(&diffs, &working_context.lib_working_context);
+        println!("{}", table.render());
+    });
 }
 
-fn create_table_key_diff<'a>(data: &Vec<KeyDiff>, working_context: &WorkingContext) -> Table<'a> {
+// Key table
+
+fn create_table_key_diff<'a>(
+    data: &Vec<KeyDiff>,
+    working_context: &LibWorkingContext,
+) -> Table<'a> {
     let mut table = Table::new();
     table.max_column_width = 80;
     table.style = TableStyle::extended();
@@ -98,7 +186,7 @@ fn create_table_key_diff<'a>(data: &Vec<KeyDiff>, working_context: &WorkingConte
     table
 }
 
-fn add_key_table_header(table: &mut Table, working_context: &WorkingContext) {
+fn add_key_table_header(table: &mut Table, working_context: &LibWorkingContext) {
     table.add_row(Row::new(vec![TableCell::new_with_alignment(
         "Key Differences",
         3,
@@ -111,7 +199,7 @@ fn add_key_table_header(table: &mut Table, working_context: &WorkingContext) {
     ]));
 }
 
-fn add_key_table_rows(table: &mut Table, data: &[KeyDiff], working_context: &WorkingContext) {
+fn add_key_table_rows(table: &mut Table, data: &[KeyDiff], working_context: &LibWorkingContext) {
     for kd in data {
         table.add_row(Row::new(vec![
             TableCell::new(&kd.key),
@@ -123,13 +211,18 @@ fn add_key_table_rows(table: &mut Table, data: &[KeyDiff], working_context: &Wor
 
 fn check_has(file_name: &str, key_diff: &KeyDiff) -> ColoredString {
     if key_diff.has == file_name {
-        "\u{2713}".color(Color::Green)
+        CHECKMARK.color(Color::Green)
     } else {
-        "\u{00D7}".color(Color::Red)
+        MULTIPLY.color(Color::Red)
     }
 }
 
-fn create_table_type_diff<'a>(data: &Vec<TypeDiff>, working_context: &WorkingContext) -> Table<'a> {
+// Type table
+
+fn create_table_type_diff<'a>(
+    data: &Vec<TypeDiff>,
+    working_context: &LibWorkingContext,
+) -> Table<'a> {
     let mut table = Table::new();
     table.max_column_width = 80;
     table.style = TableStyle::extended();
@@ -140,7 +233,7 @@ fn create_table_type_diff<'a>(data: &Vec<TypeDiff>, working_context: &WorkingCon
     table
 }
 
-fn add_type_table_header(table: &mut Table, working_context: &WorkingContext) {
+fn add_type_table_header(table: &mut Table, working_context: &LibWorkingContext) {
     table.add_row(Row::new(vec![TableCell::new_with_alignment(
         "Type Differences",
         3,
@@ -163,9 +256,11 @@ fn add_type_table_rows(table: &mut Table, data: &[TypeDiff]) {
     }
 }
 
+// Value table
+
 fn create_table_value_diff<'a>(
     data: &Vec<ValueDiff>,
-    working_context: &WorkingContext,
+    working_context: &LibWorkingContext,
 ) -> Table<'a> {
     let mut table = Table::new();
     table.max_column_width = 80;
@@ -177,7 +272,7 @@ fn create_table_value_diff<'a>(
     table
 }
 
-fn add_value_table_header(table: &mut Table, working_context: &WorkingContext) {
+fn add_value_table_header(table: &mut Table, working_context: &LibWorkingContext) {
     table.add_row(Row::new(vec![TableCell::new_with_alignment(
         "Value Differences",
         3,
@@ -200,9 +295,11 @@ fn add_value_table_rows(table: &mut Table, data: &Vec<ValueDiff>) {
     }
 }
 
+// Array table
+
 fn create_table_array_diff<'a>(
     data: &Vec<ArrayDiff>,
-    working_context: &WorkingContext,
+    working_context: &LibWorkingContext,
 ) -> Table<'a> {
     let mut table = Table::new();
     table.max_column_width = 80;
@@ -214,7 +311,7 @@ fn create_table_array_diff<'a>(
     table
 }
 
-fn add_array_table_header(table: &mut Table, working_context: &WorkingContext) {
+fn add_array_table_header(table: &mut Table, working_context: &LibWorkingContext) {
     table.add_row(Row::new(vec![TableCell::new_with_alignment(
         "Array Differences",
         3,
@@ -246,6 +343,8 @@ fn get_array_table_cell_value<'a>(descriptor: &'a ArrayDiffDesc, value_str: &'a 
         ArrayDiffDesc::BMisses => value_str,
     }
 }
+
+// Utils
 
 fn sanitize_json_str(json_str: &str) -> String {
     match serde_json::from_str::<Value>(json_str) {
