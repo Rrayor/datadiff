@@ -28,20 +28,11 @@ pub fn find_key_diffs<'a>(
 
     let mut b_keys = HashSet::new();
     for b_key in b.keys() {
-        let key = if key_in.is_empty() {
-            b_key.to_string()
-        } else {
-            format!("{}.{}", key_in, b_key)
-        };
-        b_keys.insert(key);
+        b_keys.insert(format_key(key_in, &b_key));
     }
 
     for (a_key, a_value) in a.into_iter() {
-        let key = if key_in.is_empty() {
-            a_key.to_string()
-        } else {
-            format!("{}.{}", key_in, a_key)
-        };
+        let key = format_key(key_in, &a_key);
 
         if let Some(b_value) = b.get(a_key) {
             b_keys.remove(&key);
@@ -53,11 +44,11 @@ pub fn find_key_diffs<'a>(
                 working_context,
             ));
         } else {
-            key_diff.push(KeyDiff {
+            key_diff.push(KeyDiff::new(
                 key,
-                has: working_context.file_a.name.clone(),
-                misses: working_context.file_b.name.clone(),
-            });
+                working_context.file_a.name.clone(),
+                working_context.file_b.name.clone(),
+            ));
         }
     }
 
@@ -83,34 +74,34 @@ fn find_key_diffs_in_values(
     b: &Value,
     working_context: &WorkingContext,
 ) -> Vec<KeyDiff> {
-    let mut key_diff = vec![];
-
-    if a.is_object() && b.is_object() {
-        key_diff.append(&mut find_key_diffs(
-            &key_in,
-            a.as_object().unwrap(),
-            b.as_object().unwrap(),
-            working_context,
-        ));
-    }
-
-    if working_context.config.array_same_order
-        && a.is_array()
-        && b.is_array()
-        && a.as_array().unwrap().len() == b.as_array().unwrap().len()
-    {
-        for (index, a_item) in a.as_array().unwrap().into_iter().enumerate() {
-            let array_key = format!("{}[{}]", key_in, index);
-            key_diff.append(&mut find_key_diffs_in_values(
-                &array_key,
-                a_item,
-                &b.as_array().unwrap()[index],
+    find_diff_in_values(
+        a,
+        b,
+        working_context,
+        || {
+            find_key_diffs(
+                &key_in,
+                a.as_object().unwrap(),
+                b.as_object().unwrap(),
                 working_context,
-            ));
-        }
-    }
-
-    key_diff
+            )
+        },
+        || {
+            a.as_array()
+                .unwrap()
+                .into_iter()
+                .enumerate()
+                .flat_map(|(i, a_item)| {
+                    find_key_diffs_in_values(
+                        &format!("{}[{}]", key_in, i),
+                        a_item,
+                        &b.as_array().unwrap()[i],
+                        working_context,
+                    )
+                })
+                .collect()
+        },
+    )
 }
 
 pub fn find_type_diffs<'a>(
@@ -123,14 +114,8 @@ pub fn find_type_diffs<'a>(
 
     for (a_key, a_value) in a.into_iter() {
         if let Some(b_value) = b.get(a_key) {
-            let key = if key_in.is_empty() {
-                a_key.to_string()
-            } else {
-                format!("{}.{}", key_in, a_key)
-            };
-
             type_diff.append(&mut find_type_diffs_in_values(
-                &key,
+                &format_key(key_in, &a_key),
                 a_value,
                 b_value,
                 working_context,
@@ -147,32 +132,34 @@ fn find_type_diffs_in_values(
     b: &Value,
     working_context: &WorkingContext,
 ) -> Vec<TypeDiff> {
-    let mut type_diff = vec![];
-
-    if a.is_object() && b.is_object() {
-        type_diff.append(&mut find_type_diffs(
-            &key_in,
-            a.as_object().unwrap(),
-            b.as_object().unwrap(),
-            working_context,
-        ));
-    }
-
-    if working_context.config.array_same_order
-        && a.is_array()
-        && b.is_array()
-        && a.as_array().unwrap().len() == b.as_array().unwrap().len()
-    {
-        for (index, a_item) in a.as_array().unwrap().into_iter().enumerate() {
-            let array_key = format!("{}[{}]", key_in, index);
-            type_diff.append(&mut find_type_diffs_in_values(
-                &array_key,
-                a_item,
-                &b.as_array().unwrap()[index],
+    let mut type_diff = find_diff_in_values(
+        a,
+        b,
+        working_context,
+        || {
+            find_type_diffs(
+                &key_in,
+                a.as_object().unwrap(),
+                b.as_object().unwrap(),
                 working_context,
-            ));
-        }
-    }
+            )
+        },
+        || {
+            a.as_array()
+                .unwrap()
+                .into_iter()
+                .enumerate()
+                .flat_map(|(i, a_item)| {
+                    find_type_diffs_in_values(
+                        &format!("{}[{}]", key_in, i),
+                        a_item,
+                        &b.as_array().unwrap()[i],
+                        working_context,
+                    )
+                })
+                .collect()
+        },
+    );
 
     let a_type = get_type(a);
     let b_type = get_type(b);
@@ -198,14 +185,8 @@ pub fn find_value_diffs<'a>(
 
     for (a_key, a_value) in a.into_iter() {
         if let Some(b_value) = b.get(a_key) {
-            let key = if key_in.is_empty() {
-                a_key.to_string()
-            } else {
-                format!("{}.{}", key_in, a_key)
-            };
-
             value_diff.append(&mut find_value_diffs_in_values(
-                &key,
+                &format_key(key_in, &a_key),
                 a_value,
                 b_value,
                 working_context,
@@ -270,14 +251,8 @@ pub fn find_array_diffs<'a>(
 
     for (a_key, a_value) in a.into_iter() {
         if let Some(b_value) = b.get(a_key) {
-            let key = if key_in.is_empty() {
-                a_key.to_string()
-            } else {
-                format!("{}.{}", key_in, a_key)
-            };
-
             array_diff.append(&mut find_array_diffs_in_values(
-                &key,
+                &format_key(key_in, &a_key),
                 a_value,
                 b_value,
                 working_context,
@@ -294,34 +269,42 @@ fn find_array_diffs_in_values(
     b: &Value,
     working_context: &WorkingContext,
 ) -> Vec<ArrayDiff> {
-    let mut array_diff = vec![];
-
-    if a.is_object() && b.is_object() {
-        array_diff.append(&mut find_array_diffs(
-            &key_in,
-            a.as_object().unwrap(),
-            b.as_object().unwrap(),
-            working_context,
-        ));
-    }
+    let mut array_diff = find_diff_in_values(
+        a,
+        b,
+        working_context,
+        || {
+            find_array_diffs(
+                &key_in,
+                a.as_object().unwrap(),
+                b.as_object().unwrap(),
+                working_context,
+            )
+        },
+        || vec![],
+    );
 
     if a.is_array() && b.is_array() {
         let (a_has, a_misses, b_has, b_misses) =
             fill_diff_vectors(&a.as_array().unwrap(), b.as_array().unwrap());
 
-        for (value, desc) in a_has
+        let array_diff_iter = a_has
             .iter()
             .map(|v| (v, ArrayDiffDesc::AHas))
             .chain(a_misses.iter().map(|v| (v, ArrayDiffDesc::AMisses)))
             .chain(b_has.iter().map(|v| (v, ArrayDiffDesc::BHas)))
             .chain(b_misses.iter().map(|v| (v, ArrayDiffDesc::BMisses)))
-        {
-            array_diff.push(ArrayDiff {
-                key: key_in.to_owned(),
-                descriptor: desc,
-                value: value.to_string(),
+            .map(|(value, desc)| {
+                ArrayDiff::new(
+                    key_in.to_owned(),
+                    desc,
+                    value
+                        .as_str()
+                        .map_or_else(|| value.to_string(), |v| v.to_owned()),
+                )
             });
-        }
+
+        array_diff.extend(array_diff_iter);
     }
 
     array_diff
@@ -341,6 +324,34 @@ fn fill_diff_vectors<'a, T: PartialEq + Display>(
 
 // Util
 
+fn find_diff_in_values<T, F, G>(
+    a: &Value,
+    b: &Value,
+    working_context: &WorkingContext,
+    run_if_objects: F,
+    run_if_arrays: G,
+) -> Vec<T>
+where
+    F: Fn() -> Vec<T>,
+    G: Fn() -> Vec<T>,
+{
+    let mut diffs: Vec<T> = vec![];
+
+    if a.is_object() && b.is_object() {
+        diffs.append(&mut run_if_objects());
+    }
+
+    if working_context.config.array_same_order
+        && a.is_array()
+        && b.is_array()
+        && a.as_array().unwrap().len() == b.as_array().unwrap().len()
+    {
+        diffs.append(&mut run_if_arrays());
+    }
+
+    diffs
+}
+
 fn get_type(value: &Value) -> ValueType {
     match value {
         Value::Null => ValueType::Null,
@@ -349,6 +360,14 @@ fn get_type(value: &Value) -> ValueType {
         Value::String(_) => ValueType::String,
         Value::Array(_) => ValueType::Array,
         Value::Object(_) => ValueType::Object,
+    }
+}
+
+fn format_key(key_in: &str, current_key: &str) -> String {
+    if key_in.is_empty() {
+        current_key.to_owned()
+    } else {
+        format!("{}.{}", key_in, current_key)
     }
 }
 
