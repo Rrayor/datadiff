@@ -131,4 +131,14 @@ pub struct ArrayDiff {
     pub value: String,
 }
 
+impl ArrayDiff {
+    pub fn new(key: String, descriptor: ArrayDiffDesc, value: String) -> ArrayDiff {
+        ArrayDiff {
+            key,
+            descriptor,
+            value,
+        }
+    }
+}
+
 pub type ComparisionResult = (Vec<KeyDiff>, Vec<TypeDiff>, Vec<ValueDiff>, Vec<ArrayDiff>);
