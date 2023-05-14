@@ -3,7 +3,8 @@ use std::{fs::File, io::BufReader};
 use clap::{ArgGroup, Parser};
 use colored::{Color, ColoredString, Colorize};
 use dtfterminal_types::{
-    Config, LibConfig, LibWorkingContext, SavedConfig, SavedContext, WorkingContext,
+    Config, DiffCollection, IOError, LibConfig, LibWorkingContext, SavedConfig, SavedContext,
+    WorkingContext,
 };
 use libdtf::{
     diff_types, find_array_diffs, find_key_diffs, find_type_diffs, find_value_diffs, read_json_file,
@@ -169,12 +170,7 @@ pub fn collect_data(
     data1: &Map<String, Value>,
     data2: &Map<String, Value>,
     working_context: &WorkingContext,
-) -> (
-    Option<Vec<KeyDiff>>,
-    Option<Vec<TypeDiff>>,
-    Option<Vec<ValueDiff>>,
-    Option<Vec<ArrayDiff>>,
-) {
+) -> DiffCollection {
     let key_diff = working_context
         .config
         .check_for_key_diffs
@@ -197,7 +193,7 @@ pub fn collect_data(
 
 pub fn read_from_file(file_path: &str) -> serde_json::Result<SavedContext> {
     let file =
-        File::open(&file_path).unwrap_or_else(|_| panic!("Could not open file {}", &file_path));
+        File::open(file_path).unwrap_or_else(|_| panic!("Could not open file {}", file_path));
     let reader = BufReader::new(file);
     serde_json::from_reader(reader)
 }
@@ -208,7 +204,7 @@ pub fn write_to_file(
     value_diff_option: Option<Vec<ValueDiff>>,
     array_diff_option: Option<Vec<ArrayDiff>>,
     working_context: &WorkingContext,
-) -> Result<(), ()> {
+) -> Result<(), IOError> {
     let key_diff = key_diff_option.unwrap_or(vec![]);
     let type_diff = type_diff_option.unwrap_or(vec![]);
     let value_diff = value_diff_option.unwrap_or(vec![]);
@@ -237,10 +233,10 @@ pub fn write_to_file(
             ),
         ) {
             Ok(_) => Ok(()),
-            Err(_) => Err(()),
+            Err(_) => Err(IOError {}),
         }
     } else {
-        Err(())
+        Err(IOError {})
     }
 }
 
@@ -250,49 +246,46 @@ pub fn render_tables(
     value_diff: Option<Vec<ValueDiff>>,
     array_diff: Option<Vec<ArrayDiff>>,
     working_context: &WorkingContext,
-) -> Result<(), ()> {
+) -> Result<(), IOError> {
     if working_context.config.render_key_diffs {
-        key_diff.filter(|kd| !kd.is_empty()).map(|diffs| {
+        if let Some(diffs) = key_diff.filter(|kd| !kd.is_empty()) {
             let table = create_table_key_diff(&diffs, &working_context.lib_working_context);
             println!("{}", table.render());
-        });
+        };
     }
 
     if working_context.config.render_type_diffs {
-        type_diff.filter(|td| !td.is_empty()).map(|diffs| {
+        if let Some(diffs) = type_diff.filter(|td| !td.is_empty()) {
             let table = create_table_type_diff(&diffs, &working_context.lib_working_context);
             println!("{}", table.render());
-        });
+        };
     }
 
     if working_context.config.render_value_diffs {
-        value_diff.filter(|vd| !vd.is_empty()).map(|diffs| {
+        if let Some(diffs) = value_diff.filter(|vd| !vd.is_empty()) {
             let table = create_table_value_diff(&diffs, &working_context.lib_working_context);
             println!("{}", table.render());
-        });
+        };
     }
 
     if working_context.config.render_array_diffs {
-        array_diff.filter(|ad| !ad.is_empty()).map(|diffs| {
+        if let Some(diffs) = array_diff.filter(|ad| !ad.is_empty()) {
             let table = create_table_array_diff(&diffs, &working_context.lib_working_context);
             println!("{}", table.render());
-        });
+        };
     }
     Ok(())
 }
 
 // Key table
 
-fn create_table_key_diff<'a>(
-    data: &Vec<KeyDiff>,
-    working_context: &LibWorkingContext,
-) -> Table<'a> {
+fn create_table_key_diff<'a>(data: &[KeyDiff], working_context: &LibWorkingContext) -> Table<'a> {
     let mut table = Table::new();
     table.max_column_width = 80;
     table.style = TableStyle::extended();
 
     add_key_table_header(&mut table, working_context);
-    add_key_table_rows(&mut table, &data, working_context);
+    add_key_table_rows(&mut table, data, working_context);
 
     table
 }
@@ -330,16 +323,13 @@ fn check_has(file_name: &str, key_diff: &KeyDiff) -> ColoredString {
 
 // Type table
 
-fn create_table_type_diff<'a>(
-    data: &Vec<TypeDiff>,
-    working_context: &LibWorkingContext,
-) -> Table<'a> {
+fn create_table_type_diff<'a>(data: &[TypeDiff], working_context: &LibWorkingContext) -> Table<'a> {
     let mut table = Table::new();
     table.max_column_width = 80;
     table.style = TableStyle::extended();
 
     add_type_table_header(&mut table, working_context);
-    add_type_table_rows(&mut table, &data);
+    add_type_table_rows(&mut table, data);
 
     table
 }
@@ -378,7 +368,7 @@ fn create_table_value_diff<'a>(
     table.style = TableStyle::extended();
 
     add_value_table_header(&mut table, working_context);
-    add_value_table_rows(&mut table, &data);
+    add_value_table_rows(&mut table, data);
 
     table
 }
@@ -417,7 +407,7 @@ fn create_table_array_diff<'a>(
     table.style = TableStyle::extended();
 
     add_array_table_header(&mut table, working_context);
-    add_array_table_rows(&mut table, &data);
+    add_array_table_rows(&mut table, data);
 
     table
 }

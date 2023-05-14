@@ -1,8 +1,17 @@
+use std::{error::Error, fmt};
+
 use libdtf::diff_types::{ArrayDiff, KeyDiff, TypeDiff, ValueDiff};
 use serde::{Deserialize, Serialize};
 
 pub type LibConfig = libdtf::diff_types::Config;
 pub type LibWorkingContext = libdtf::diff_types::WorkingContext;
+
+pub type DiffCollection = (
+    Option<Vec<KeyDiff>>,
+    Option<Vec<TypeDiff>>,
+    Option<Vec<ValueDiff>>,
+    Option<Vec<ArrayDiff>>,
+);
 
 #[derive(Serialize, Deserialize)]
 pub struct SavedConfig {
@@ -127,5 +136,16 @@ impl SavedContext {
             array_diff,
             config,
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct IOError;
+
+impl Error for IOError {}
+
+impl fmt::Display for IOError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "IO action failed!")
     }
 }
