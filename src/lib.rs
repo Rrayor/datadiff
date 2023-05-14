@@ -1,9 +1,9 @@
-use std::{fs::File, io::BufReader};
+use std::{error::Error, fs::File, io::BufReader};
 
 use clap::{ArgGroup, Parser};
 use colored::{Color, ColoredString, Colorize};
 use dtfterminal_types::{
-    Config, ConfigBuilder, DiffCollection, IOError, LibConfig, LibWorkingContext, ParsedArgs,
+    Config, ConfigBuilder, DiffCollection, DtfError, LibConfig, LibWorkingContext, ParsedArgs,
     SavedConfig, SavedContext, WorkingContext,
 };
 use libdtf::{
@@ -73,34 +73,14 @@ const MULTIPLY: &str = "\u{00D7}";
 pub fn parse_args() -> ParsedArgs {
     let args = Arguments::parse();
 
-    let data1 = if args.read_from_file.is_empty() {
-        Some(
-            read_json_file(&args.check_files[0])
-                .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.check_files[0])),
-        )
+    let (data1, data2) = if args.read_from_file.is_empty() {
+        let data1 = read_json_file(&args.check_files[0])
+            .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.check_files[0]));
+        let data2 = read_json_file(&args.check_files[1])
+            .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.check_files[1]));
+        (Some(data1), Some(data2))
     } else {
-        None
-    };
-
-    let data2 = if args.read_from_file.is_empty() {
-        Some(
-            read_json_file(&args.check_files[1])
-                .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.check_files[1])),
-        )
-    } else {
-        None
-    };
-
-    let file_a = if args.read_from_file.is_empty() {
-        Some(args.check_files[0].clone())
-    } else {
-        None
-    };
-
-    let file_b = if args.read_from_file.is_empty() {
-        Some(args.check_files[1].clone())
-    } else {
-        None
+        (None, None)
     };
 
     let config = ConfigBuilder::new()
@@ -114,8 +94,8 @@ pub fn parse_args() -> ParsedArgs {
         .render_array_diffs(args.array_diffs)
         .read_from_file(args.read_from_file)
         .write_to_file(args.write_to_file)
-        .file_a(file_a)
-        .file_b(file_b)
+        .file_a(data1.clone().map(|_| args.check_files[0].clone()))
+        .file_b(data2.clone().map(|_| args.check_files[1].clone()))
         .array_same_order(args.array_same_order)
         .build();
 
@@ -128,57 +108,84 @@ pub fn collect_data(
     user_config: &Config,
 ) -> (DiffCollection, WorkingContext) {
     if user_config.read_from_file.is_empty() {
-        let file_a = WorkingFile::new(user_config.file_a.clone().unwrap());
-        let file_b = WorkingFile::new(user_config.file_b.clone().unwrap());
-
-        let lib_working_context =
-            LibWorkingContext::new(file_a, file_b, LibConfig::new(user_config.array_same_order));
-
-        let working_context = WorkingContext::new(lib_working_context, user_config.clone());
-        (
-            check_for_diffs(&data1.unwrap(), &data2.unwrap(), &working_context),
-            working_context,
-        )
+        collect_data_new_check(data1, data2, user_config).expect("Data check failed!")
     } else {
-        let saved_data = read_from_file(&user_config.read_from_file).unwrap();
-        let saved_config = saved_data.config;
-        let file_a = WorkingFile::new(saved_config.file_a.clone());
-        let file_b = WorkingFile::new(saved_config.file_b.clone());
-        let lib_working_context = LibWorkingContext::new(
-            file_a,
-            file_b,
-            LibConfig::new(saved_config.array_same_order),
-        );
-
-        let working_context = WorkingContext::new(
-            lib_working_context,
-            ConfigBuilder::new()
-                .check_for_key_diffs(saved_config.check_for_key_diffs)
-                .check_for_type_diffs(saved_config.check_for_type_diffs)
-                .check_for_value_diffs(saved_config.check_for_value_diffs)
-                .check_for_array_diffs(saved_config.check_for_array_diffs)
-                .render_key_diffs(user_config.render_key_diffs)
-                .render_type_diffs(user_config.render_type_diffs)
-                .render_value_diffs(user_config.render_value_diffs)
-                .render_array_diffs(user_config.render_array_diffs)
-                .read_from_file(user_config.read_from_file.clone())
-                .write_to_file(user_config.write_to_file.clone())
-                .file_a(Some(saved_config.file_a))
-                .file_b(Some(saved_config.file_b))
-                .array_same_order(saved_config.array_same_order)
-                .build(),
-        );
-
-        (
-            (
-                Some(saved_data.key_diff),
-                Some(saved_data.type_diff),
-                Some(saved_data.value_diff),
-                Some(saved_data.array_diff),
-            ),
-            working_context,
-        )
+        collect_data_load(user_config).expect("Could not load saved file!")
     }
+}
+
+fn collect_data_new_check(
+    data1: Option<Map<String, Value>>,
+    data2: Option<Map<String, Value>>,
+    user_config: &Config,
+) -> Result<(DiffCollection, WorkingContext), Box<dyn Error>> {
+    let file_a = WorkingFile::new(user_config.file_a.as_ref().unwrap().clone());
+    let file_b = WorkingFile::new(user_config.file_b.as_ref().unwrap().clone());
+
+    let lib_working_context =
+        LibWorkingContext::new(file_a, file_b, LibConfig::new(user_config.array_same_order));
+
+    let working_context = WorkingContext::new(lib_working_context, user_config.clone());
+
+    let diffs = check_for_diffs(
+        &data1.ok_or("Contents of first file are missing")?,
+        &data2.ok_or("Contents of second file are missing")?,
+        &working_context,
+    );
+
+    Ok((diffs, working_context))
+}
+
+fn collect_data_load(
+    user_config: &Config,
+) -> Result<(DiffCollection, WorkingContext), Box<dyn Error>> {
+    let saved_data = match read_from_file(&user_config.read_from_file) {
+        Ok(data) => data,
+        Err(e) => return Err(Box::new(DtfError::IoError(e.into()))),
+    };
+    let saved_config = saved_data.config;
+
+    let diff_collection = (
+        Some(saved_data.key_diff),
+        Some(saved_data.type_diff),
+        Some(saved_data.value_diff),
+        Some(saved_data.array_diff),
+    );
+
+    let working_context = build_working_context_from_loaded_data(&saved_config, user_config);
+
+    Ok((diff_collection, working_context))
+}
+
+fn build_working_context_from_loaded_data(
+    saved_config: &SavedConfig,
+    user_config: &Config,
+) -> WorkingContext {
+    let file_a = WorkingFile::new(saved_config.file_a.clone());
+    let file_b = WorkingFile::new(saved_config.file_b.clone());
+    let lib_working_context = LibWorkingContext::new(
+        file_a,
+        file_b,
+        LibConfig::new(saved_config.array_same_order),
+    );
+    WorkingContext::new(
+        lib_working_context,
+        ConfigBuilder::new()
+            .check_for_key_diffs(saved_config.check_for_key_diffs)
+            .check_for_type_diffs(saved_config.check_for_type_diffs)
+            .check_for_value_diffs(saved_config.check_for_value_diffs)
+            .check_for_array_diffs(saved_config.check_for_array_diffs)
+            .render_key_diffs(user_config.render_key_diffs)
+            .render_type_diffs(user_config.render_type_diffs)
+            .render_value_diffs(user_config.render_value_diffs)
+            .render_array_diffs(user_config.render_array_diffs)
+            .read_from_file(user_config.read_from_file.clone())
+            .write_to_file(user_config.write_to_file.clone())
+            .file_a(Some(saved_config.file_a.clone()))
+            .file_b(Some(saved_config.file_b.clone()))
+            .array_same_order(saved_config.array_same_order)
+            .build(),
+    )
 }
 
 pub fn check_for_diffs(
@@ -219,11 +226,11 @@ pub fn write_to_file(
     value_diff_option: Option<Vec<ValueDiff>>,
     array_diff_option: Option<Vec<ArrayDiff>>,
     working_context: &WorkingContext,
-) -> Result<(), IOError> {
-    let key_diff = key_diff_option.unwrap_or(vec![]);
-    let type_diff = type_diff_option.unwrap_or(vec![]);
-    let value_diff = value_diff_option.unwrap_or(vec![]);
-    let array_diff = array_diff_option.unwrap_or(vec![]);
+) -> Result<(), DtfError> {
+    let key_diff = key_diff_option.unwrap_or_default();
+    let type_diff = type_diff_option.unwrap_or_default();
+    let value_diff = value_diff_option.unwrap_or_default();
+    let array_diff = array_diff_option.unwrap_or_default();
 
     if let Some(write_to_file) = working_context.config.write_to_file.clone() {
         let file = File::create(write_to_file);
@@ -248,10 +255,12 @@ pub fn write_to_file(
             ),
         ) {
             Ok(_) => Ok(()),
-            Err(_) => Err(IOError {}),
+            Err(e) => Err(DtfError::IoError(e.into())),
         }
     } else {
-        Err(IOError {})
+        Err(DtfError::DiffError(
+            "File path missing for writing results!".to_owned(),
+        ))
     }
 }
 
@@ -261,34 +270,40 @@ pub fn render_tables(
     value_diff: Option<Vec<ValueDiff>>,
     array_diff: Option<Vec<ArrayDiff>>,
     working_context: &WorkingContext,
-) -> Result<(), IOError> {
+) -> Result<(), DtfError> {
+    let mut tables = vec![];
     if working_context.config.render_key_diffs {
         if let Some(diffs) = key_diff.filter(|kd| !kd.is_empty()) {
             let table = create_table_key_diff(&diffs, &working_context.lib_working_context);
-            println!("{}", table.render());
-        };
+            tables.push(table);
+        }
     }
 
     if working_context.config.render_type_diffs {
         if let Some(diffs) = type_diff.filter(|td| !td.is_empty()) {
             let table = create_table_type_diff(&diffs, &working_context.lib_working_context);
-            println!("{}", table.render());
-        };
+            tables.push(table);
+        }
     }
 
     if working_context.config.render_value_diffs {
         if let Some(diffs) = value_diff.filter(|vd| !vd.is_empty()) {
             let table = create_table_value_diff(&diffs, &working_context.lib_working_context);
-            println!("{}", table.render());
-        };
+            tables.push(table);
+        }
     }
 
     if working_context.config.render_array_diffs {
         if let Some(diffs) = array_diff.filter(|ad| !ad.is_empty()) {
             let table = create_table_array_diff(&diffs, &working_context.lib_working_context);
-            println!("{}", table.render());
-        };
+            tables.push(table);
+        }
     }
+
+    for table in tables {
+        println!("{}", table.render());
+    }
+
     Ok(())
 }
 

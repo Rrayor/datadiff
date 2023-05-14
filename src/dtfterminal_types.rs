@@ -232,12 +232,20 @@ impl SavedContext {
 }
 
 #[derive(Debug)]
-pub struct IOError;
+pub enum DtfError {
+    IoError(std::io::Error),
+    DiffError(String),
+    GeneralError(Box<DtfError>),
+}
 
-impl Error for IOError {}
-
-impl fmt::Display for IOError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "IO action failed!")
+impl fmt::Display for DtfError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DtfError::IoError(err) => write!(f, "IO error: {}", err),
+            DtfError::DiffError(msg) => write!(f, "Diff error: {}", msg),
+            DtfError::GeneralError(err) => write!(f, "General error happened {}", err),
+        }
     }
 }
+
+impl Error for DtfError {}
