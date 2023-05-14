@@ -1,5 +1,8 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use dtfterminal::{collect_data, Config, LibConfig, LibWorkingContext, WorkingContext};
+use dtfterminal::{
+    collect_data,
+    dtfterminal_types::{Config, LibConfig, LibWorkingContext, WorkingContext},
+};
 use libdtf::diff_types::WorkingFile;
 use serde_json::json;
 
@@ -160,6 +163,10 @@ fn create_test_working_context(array_same_order: bool) -> WorkingContext {
     let working_file_a = WorkingFile::new(FILE_NAME_A.to_owned());
     let working_file_b = WorkingFile::new(FILE_NAME_B.to_owned());
     let config = Config::new(
+        true,
+        true,
+        true,
+        true,
         true,
         true,
         true,
