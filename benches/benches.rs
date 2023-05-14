@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use dtfterminal::{
-    collect_data,
-    dtfterminal_types::{Config, LibConfig, LibWorkingContext, WorkingContext},
+    check_for_diffs,
+    dtfterminal_types::{Config, ConfigBuilder, LibConfig, LibWorkingContext, WorkingContext},
 };
 use libdtf::diff_types::WorkingFile;
 use serde_json::json;
@@ -74,7 +74,7 @@ fn benchmark_collect_data_no_array_same_order(c: &mut Criterion) {
     // act
     c.bench_function("Collect Data No Array Same Order", |bencher| {
         bencher.iter(|| {
-            let _ = collect_data(
+            let _ = check_for_diffs(
                 a.as_object().unwrap(),
                 &b.as_object().unwrap(),
                 &working_context,
@@ -148,7 +148,7 @@ fn benchmark_collect_data_array_same_order(c: &mut Criterion) {
     // act
     c.bench_function("Collect Data Array Same Order", |bencher| {
         bencher.iter(|| {
-            let _ = collect_data(
+            let _ = check_for_diffs(
                 a.as_object().unwrap(),
                 &b.as_object().unwrap(),
                 &working_context,
@@ -162,21 +162,21 @@ fn benchmark_collect_data_array_same_order(c: &mut Criterion) {
 fn create_test_working_context(array_same_order: bool) -> WorkingContext {
     let working_file_a = WorkingFile::new(FILE_NAME_A.to_owned());
     let working_file_b = WorkingFile::new(FILE_NAME_B.to_owned());
-    let config = Config::new(
-        true,
-        true,
-        true,
-        true,
-        true,
-        true,
-        true,
-        true,
-        String::new(),
-        None,
-        Some(FILE_NAME_A.to_owned()),
-        Some(FILE_NAME_B.to_owned()),
-        array_same_order,
-    );
+    let config = ConfigBuilder::new()
+        .check_for_key_diffs(true)
+        .check_for_type_diffs(true)
+        .check_for_value_diffs(true)
+        .check_for_array_diffs(true)
+        .render_key_diffs(true)
+        .render_type_diffs(true)
+        .render_value_diffs(true)
+        .render_array_diffs(true)
+        .read_from_file(String::new())
+        .write_to_file(None)
+        .file_a(Some(FILE_NAME_A.to_owned()))
+        .file_b(Some(FILE_NAME_B.to_owned()))
+        .array_same_order(array_same_order)
+        .build();
     WorkingContext::new(
         LibWorkingContext::new(
             working_file_a,

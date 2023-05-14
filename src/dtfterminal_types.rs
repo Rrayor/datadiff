@@ -2,10 +2,16 @@ use std::{error::Error, fmt};
 
 use libdtf::diff_types::{ArrayDiff, KeyDiff, TypeDiff, ValueDiff};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 pub type LibConfig = libdtf::diff_types::Config;
 pub type LibWorkingContext = libdtf::diff_types::WorkingContext;
 
+pub type ParsedArgs = (
+    Option<Map<String, Value>>,
+    Option<Map<String, Value>>,
+    Config,
+);
 pub type DiffCollection = (
     Option<Vec<KeyDiff>>,
     Option<Vec<TypeDiff>>,
@@ -63,36 +69,122 @@ pub struct Config {
     pub array_same_order: bool,
 }
 
-impl Config {
-    pub fn new(
-        check_for_key_diffs: bool,
-        check_for_type_diffs: bool,
-        check_for_value_diffs: bool,
-        check_for_array_diffs: bool,
-        render_key_diffs: bool,
-        render_type_diffs: bool,
-        render_value_diffs: bool,
-        render_array_diffs: bool,
-        read_from_file: String,
-        write_to_file: Option<String>,
-        file_a: Option<String>,
-        file_b: Option<String>,
-        array_same_order: bool,
-    ) -> Config {
+#[derive(Default)]
+pub struct ConfigBuilder {
+    check_for_key_diffs: bool,
+    check_for_type_diffs: bool,
+    check_for_value_diffs: bool,
+    check_for_array_diffs: bool,
+    render_key_diffs: bool,
+    render_type_diffs: bool,
+    render_value_diffs: bool,
+    render_array_diffs: bool,
+    read_from_file: String,
+    write_to_file: Option<String>,
+    file_a: Option<String>,
+    file_b: Option<String>,
+    array_same_order: bool,
+}
+
+impl ConfigBuilder {
+    pub fn new() -> ConfigBuilder {
+        ConfigBuilder {
+            check_for_key_diffs: false,
+            check_for_type_diffs: false,
+            check_for_value_diffs: false,
+            check_for_array_diffs: false,
+            render_key_diffs: false,
+            render_type_diffs: false,
+            render_value_diffs: false,
+            render_array_diffs: false,
+            read_from_file: String::new(),
+            write_to_file: None,
+            file_a: None,
+            file_b: None,
+            array_same_order: false,
+        }
+    }
+
+    pub fn check_for_key_diffs(mut self, check_for_key_diffs: bool) -> ConfigBuilder {
+        self.check_for_key_diffs = check_for_key_diffs;
+        self
+    }
+
+    pub fn check_for_type_diffs(mut self, check_for_type_diffs: bool) -> ConfigBuilder {
+        self.check_for_type_diffs = check_for_type_diffs;
+        self
+    }
+
+    pub fn check_for_value_diffs(mut self, check_for_value_diffs: bool) -> ConfigBuilder {
+        self.check_for_value_diffs = check_for_value_diffs;
+        self
+    }
+
+    pub fn check_for_array_diffs(mut self, check_for_array_diffs: bool) -> ConfigBuilder {
+        self.check_for_array_diffs = check_for_array_diffs;
+        self
+    }
+
+    pub fn render_key_diffs(mut self, render_key_diffs: bool) -> ConfigBuilder {
+        self.render_key_diffs = render_key_diffs;
+        self
+    }
+
+    pub fn render_type_diffs(mut self, render_type_diffs: bool) -> ConfigBuilder {
+        self.render_type_diffs = render_type_diffs;
+        self
+    }
+
+    pub fn render_value_diffs(mut self, render_value_diffs: bool) -> ConfigBuilder {
+        self.render_value_diffs = render_value_diffs;
+        self
+    }
+
+    pub fn render_array_diffs(mut self, render_array_diffs: bool) -> ConfigBuilder {
+        self.render_array_diffs = render_array_diffs;
+        self
+    }
+
+    pub fn read_from_file(mut self, read_from_file: String) -> ConfigBuilder {
+        self.read_from_file = read_from_file;
+        self
+    }
+
+    pub fn write_to_file(mut self, write_to_file: Option<String>) -> ConfigBuilder {
+        self.write_to_file = write_to_file;
+        self
+    }
+
+    pub fn file_a(mut self, file_a: Option<String>) -> ConfigBuilder {
+        self.file_a = file_a;
+        self
+    }
+
+    pub fn file_b(mut self, file_b: Option<String>) -> ConfigBuilder {
+        self.file_b = file_b;
+        self
+    }
+
+    pub fn array_same_order(mut self, array_same_order: bool) -> ConfigBuilder {
+        self.array_same_order = array_same_order;
+        self
+    }
+
+    pub fn build(self) -> Config {
         Config {
-            check_for_key_diffs,
-            check_for_type_diffs,
-            check_for_value_diffs,
-            check_for_array_diffs,
-            render_key_diffs,
-            render_type_diffs,
-            render_value_diffs,
-            render_array_diffs,
-            read_from_file,
-            write_to_file,
-            file_a,
-            file_b,
-            array_same_order,
+            check_for_key_diffs: self.check_for_key_diffs,
+            check_for_type_diffs: self.check_for_type_diffs,
+            check_for_value_diffs: self.check_for_value_diffs,
+            check_for_array_diffs: self.check_for_array_diffs,
+            render_key_diffs: self.render_key_diffs,
+            render_type_diffs: self.render_type_diffs,
+            render_value_diffs: self.render_value_diffs,
+            render_array_diffs: self.render_array_diffs,
+            read_from_file: self.read_from_file,
+            write_to_file: self.write_to_file,
+            file_a: self.file_a,
+            file_b: self.file_b,
+            array_same_order: self.array_same_order,
         }
     }
 }

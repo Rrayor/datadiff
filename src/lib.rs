@@ -3,8 +3,8 @@ use std::{fs::File, io::BufReader};
 use clap::{ArgGroup, Parser};
 use colored::{Color, ColoredString, Colorize};
 use dtfterminal_types::{
-    Config, DiffCollection, IOError, LibConfig, LibWorkingContext, SavedConfig, SavedContext,
-    WorkingContext,
+    Config, ConfigBuilder, DiffCollection, IOError, LibConfig, LibWorkingContext, ParsedArgs,
+    SavedConfig, SavedContext, WorkingContext,
 };
 use libdtf::{
     diff_types, find_array_diffs, find_key_diffs, find_type_diffs, find_value_diffs, read_json_file,
@@ -70,11 +70,7 @@ struct Arguments {
 const CHECKMARK: &str = "\u{2713}";
 const MULTIPLY: &str = "\u{00D7}";
 
-pub fn parse_args() -> (
-    Option<Map<String, Value>>,
-    Option<Map<String, Value>>,
-    Config,
-) {
+pub fn parse_args() -> ParsedArgs {
     let args = Arguments::parse();
 
     let data1 = if args.read_from_file.is_empty() {
@@ -107,26 +103,30 @@ pub fn parse_args() -> (
         None
     };
 
-    let config = Config::new(
-        args.key_diffs,
-        args.type_diffs,
-        args.value_diffs,
-        args.array_diffs,
-        args.key_diffs,
-        args.type_diffs,
-        args.value_diffs,
-        args.array_diffs,
-        args.read_from_file,
-        args.write_to_file,
-        file_a,
-        file_b,
-        args.array_same_order,
-    );
+    let config = ConfigBuilder::new()
+        .check_for_key_diffs(args.key_diffs)
+        .check_for_type_diffs(args.type_diffs)
+        .check_for_value_diffs(args.value_diffs)
+        .check_for_array_diffs(args.array_diffs)
+        .render_key_diffs(args.key_diffs)
+        .render_type_diffs(args.type_diffs)
+        .render_value_diffs(args.value_diffs)
+        .render_array_diffs(args.array_diffs)
+        .read_from_file(args.read_from_file)
+        .write_to_file(args.write_to_file)
+        .file_a(file_a)
+        .file_b(file_b)
+        .array_same_order(args.array_same_order)
+        .build();
 
     (data1, data2, config)
 }
 
-pub fn create_working_context(user_config: &Config) -> WorkingContext {
+pub fn collect_data(
+    data1: Option<Map<String, Value>>,
+    data2: Option<Map<String, Value>>,
+    user_config: &Config,
+) -> (DiffCollection, WorkingContext) {
     if user_config.read_from_file.is_empty() {
         let file_a = WorkingFile::new(user_config.file_a.clone().unwrap());
         let file_b = WorkingFile::new(user_config.file_b.clone().unwrap());
@@ -134,9 +134,14 @@ pub fn create_working_context(user_config: &Config) -> WorkingContext {
         let lib_working_context =
             LibWorkingContext::new(file_a, file_b, LibConfig::new(user_config.array_same_order));
 
-        WorkingContext::new(lib_working_context, user_config.clone())
+        let working_context = WorkingContext::new(lib_working_context, user_config.clone());
+        (
+            check_for_diffs(&data1.unwrap(), &data2.unwrap(), &working_context),
+            working_context,
+        )
     } else {
-        let saved_config = read_from_file(&user_config.read_from_file).unwrap().config;
+        let saved_data = read_from_file(&user_config.read_from_file).unwrap();
+        let saved_config = saved_data.config;
         let file_a = WorkingFile::new(saved_config.file_a.clone());
         let file_b = WorkingFile::new(saved_config.file_b.clone());
         let lib_working_context = LibWorkingContext::new(
@@ -145,28 +150,38 @@ pub fn create_working_context(user_config: &Config) -> WorkingContext {
             LibConfig::new(saved_config.array_same_order),
         );
 
-        WorkingContext::new(
+        let working_context = WorkingContext::new(
             lib_working_context,
-            Config::new(
-                saved_config.check_for_key_diffs,
-                saved_config.check_for_type_diffs,
-                saved_config.check_for_value_diffs,
-                saved_config.check_for_array_diffs,
-                user_config.check_for_key_diffs,
-                user_config.check_for_type_diffs,
-                user_config.check_for_value_diffs,
-                user_config.check_for_array_diffs,
-                user_config.read_from_file.clone(),
-                user_config.write_to_file.clone(),
-                Some(saved_config.file_a),
-                Some(saved_config.file_b),
-                saved_config.array_same_order,
+            ConfigBuilder::new()
+                .check_for_key_diffs(saved_config.check_for_key_diffs)
+                .check_for_type_diffs(saved_config.check_for_type_diffs)
+                .check_for_value_diffs(saved_config.check_for_value_diffs)
+                .check_for_array_diffs(saved_config.check_for_array_diffs)
+                .render_key_diffs(user_config.render_key_diffs)
+                .render_type_diffs(user_config.render_type_diffs)
+                .render_value_diffs(user_config.render_value_diffs)
+                .render_array_diffs(user_config.render_array_diffs)
+                .read_from_file(user_config.read_from_file.clone())
+                .write_to_file(user_config.write_to_file.clone())
+                .file_a(Some(saved_config.file_a))
+                .file_b(Some(saved_config.file_b))
+                .array_same_order(saved_config.array_same_order)
+                .build(),
+        );
+
+        (
+            (
+                Some(saved_data.key_diff),
+                Some(saved_data.type_diff),
+                Some(saved_data.value_diff),
+                Some(saved_data.array_diff),
             ),
+            working_context,
         )
     }
 }
 
-pub fn collect_data(
+pub fn check_for_diffs(
     data1: &Map<String, Value>,
     data2: &Map<String, Value>,
     working_context: &WorkingContext,
