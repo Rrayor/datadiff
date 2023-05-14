@@ -157,7 +157,7 @@ fn benchmark_collect_data_array_same_order(c: &mut Criterion) {
 // Benchmark utils
 
 fn create_test_working_context(array_same_order: bool) -> WorkingContext {
-    let config = Config::new(true, true, true, true);
+    let config = Config::new(true, true, true, true, String::new(), None);
     let working_file_a = WorkingFile::new(FILE_NAME_A.to_owned());
     let working_file_b = WorkingFile::new(FILE_NAME_B.to_owned());
     WorkingContext::new(

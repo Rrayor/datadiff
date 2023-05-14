@@ -1,8 +1,11 @@
+use std::fs::File;
+
 use clap::{ArgGroup, Parser};
 use colored::{Color, ColoredString, Colorize};
 use libdtf::{
     diff_types, find_array_diffs, find_key_diffs, find_type_diffs, find_value_diffs, read_json_file,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use term_table::{
     row::Row,
@@ -15,11 +18,14 @@ use diff_types::{ArrayDiff, ArrayDiffDesc, KeyDiff, TypeDiff, ValueDiff, Working
 pub type LibConfig = libdtf::diff_types::Config;
 pub type LibWorkingContext = libdtf::diff_types::WorkingContext;
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Config {
     check_for_key_diffs: bool,
     check_for_type_diffs: bool,
     check_for_value_diffs: bool,
     check_for_array_diffs: bool,
+    pub read_from_file: String,
+    pub write_to_file: Option<String>,
 }
 
 impl Config {
@@ -28,19 +34,24 @@ impl Config {
         check_for_type_diffs: bool,
         check_for_value_diffs: bool,
         check_for_array_diffs: bool,
+        read_from_file: String,
+        write_to_file: Option<String>,
     ) -> Config {
         Config {
             check_for_key_diffs,
             check_for_type_diffs,
             check_for_value_diffs,
             check_for_array_diffs,
+            read_from_file,
+            write_to_file,
         }
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct WorkingContext {
     lib_working_context: LibWorkingContext,
-    config: Config,
+    pub config: Config,
 }
 
 impl WorkingContext {
@@ -52,19 +63,61 @@ impl WorkingContext {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct SavedContext {
+    key_diff: Vec<KeyDiff>,
+    type_diff: Vec<TypeDiff>,
+    value_diff: Vec<ValueDiff>,
+    array_diff: Vec<ArrayDiff>,
+    working_context: WorkingContext,
+}
+
+impl SavedContext {
+    pub fn new(
+        key_diff: Vec<KeyDiff>,
+        type_diff: Vec<TypeDiff>,
+        value_diff: Vec<ValueDiff>,
+        array_diff: Vec<ArrayDiff>,
+        working_context: WorkingContext,
+    ) -> SavedContext {
+        SavedContext {
+            key_diff,
+            type_diff,
+            value_diff,
+            array_diff,
+            working_context,
+        }
+    }
+}
+
 #[derive(Default, Parser, Debug)]
-#[clap(version, about, group(
-    ArgGroup::new("diff-options")
+#[clap(
+    version,
+    about,
+    group(
+        ArgGroup::new("diff-options")
+            .required(true)
+            .multiple(true)
+            .args(&["key_diffs", "type_diffs", "value_diffs", "array_diffs"]),
+    ),
+    group(
+        ArgGroup::new("file-options")
         .required(true)
-        .multiple(true)
-        .args(&["key_diffs", "type_diffs", "value_diffs", "array_diffs"]),
-))]
+        .args(&["check_files", "read_from_file"])
+    )
+)]
 /// Find the difference in your data structures
 struct Arguments {
-    /// The file containing your first data structure
-    file_name1: String,
-    /// The file containing your second data structure
-    file_name2: String,
+    /// The files to check if not reading from saved check
+    #[clap(short, value_delimiter = ' ', num_args = 2)]
+    check_files: Vec<String>,
+    /// Read from a JSON file created on previous check instead of checking again
+    #[clap(short, default_value_t = String::new())]
+    read_from_file: String,
+
+    /// Output to json file instead of rendering tables in the terminal
+    #[clap(short)]
+    write_to_file: Option<String>,
 
     /// Check for Key differences
     #[clap(short, default_value_t = false)]
@@ -89,19 +142,21 @@ const MULTIPLY: &str = "\u{00D7}";
 
 pub fn parse_args() -> (Map<String, Value>, Map<String, Value>, WorkingContext) {
     let args = Arguments::parse();
-    let data1 = read_json_file(&args.file_name1)
-        .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.file_name1));
-    let data2 = read_json_file(&args.file_name2)
-        .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.file_name2));
+    let data1 = read_json_file(&args.check_files[0])
+        .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.check_files[0]));
+    let data2 = read_json_file(&args.check_files[1])
+        .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.check_files[2]));
 
-    let file_a = WorkingFile::new(args.file_name1.to_owned());
-    let file_b = WorkingFile::new(args.file_name2.to_owned());
+    let file_a = WorkingFile::new(args.check_files[0].to_owned());
+    let file_b = WorkingFile::new(args.check_files[1].to_owned());
 
     let config = Config::new(
         args.key_diffs,
         args.type_diffs,
         args.value_diffs,
         args.array_diffs,
+        args.read_from_file,
+        args.write_to_file,
     );
 
     let lib_working_context =
@@ -142,13 +197,46 @@ pub fn collect_data(
     (key_diff, type_diff, value_diff, array_diff)
 }
 
+pub fn write_to_file(
+    key_diff_option: Option<Vec<KeyDiff>>,
+    type_diff_option: Option<Vec<TypeDiff>>,
+    value_diff_option: Option<Vec<ValueDiff>>,
+    array_diff_option: Option<Vec<ArrayDiff>>,
+    working_context: &WorkingContext,
+) -> Result<(), ()> {
+    let key_diff = key_diff_option.unwrap_or(vec![]);
+    let type_diff = type_diff_option.unwrap_or(vec![]);
+    let value_diff = value_diff_option.unwrap_or(vec![]);
+    let array_diff = array_diff_option.unwrap_or(vec![]);
+
+    if let Some(write_to_file) = working_context.config.write_to_file.clone() {
+        let file = File::create(write_to_file);
+
+        match serde_json::to_writer(
+            &mut file.unwrap(),
+            &SavedContext::new(
+                key_diff,
+                type_diff,
+                value_diff,
+                array_diff,
+                working_context.clone(),
+            ),
+        ) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(()),
+        }
+    } else {
+        Err(())
+    }
+}
+
 pub fn render_tables(
     key_diff: Option<Vec<KeyDiff>>,
     type_diff: Option<Vec<TypeDiff>>,
     value_diff: Option<Vec<ValueDiff>>,
     array_diff: Option<Vec<ArrayDiff>>,
     working_context: &WorkingContext,
-) {
+) -> Result<(), ()> {
     key_diff.map(|diffs| {
         let table = create_table_key_diff(&diffs, &working_context.lib_working_context);
         println!("{}", table.render());
@@ -168,6 +256,7 @@ pub fn render_tables(
         let table = create_table_array_diff(&diffs, &working_context.lib_working_context);
         println!("{}", table.render());
     });
+    Ok(())
 }
 
 // Key table
