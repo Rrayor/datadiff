@@ -6,9 +6,8 @@ use dtfterminal_types::{
     Config, ConfigBuilder, DiffCollection, DtfError, LibConfig, LibWorkingContext, ParsedArgs,
     SavedConfig, SavedContext, WorkingContext,
 };
-use libdtf::{
-    diff_types, find_array_diffs, find_key_diffs, find_type_diffs, find_value_diffs, read_json_file,
-};
+use key_table::KeyTable;
+use libdtf::{diff_types, read_json_file};
 use serde_json::{Map, Value};
 use term_table::{
     row::Row,
@@ -16,9 +15,12 @@ use term_table::{
     Table, TableStyle,
 };
 
-use diff_types::{ArrayDiff, ArrayDiffDesc, KeyDiff, TypeDiff, ValueDiff, WorkingFile};
+use diff_types::{
+    ArrayDiff, ArrayDiffDesc, Checker, CheckingData, KeyDiff, TypeDiff, ValueDiff, WorkingFile,
+};
 
 pub mod dtfterminal_types;
+mod key_table;
 
 #[derive(Default, Parser, Debug)]
 #[clap(
@@ -193,22 +195,38 @@ pub fn check_for_diffs(
     data2: &Map<String, Value>,
     working_context: &WorkingContext,
 ) -> DiffCollection {
-    let key_diff = working_context
-        .config
-        .check_for_key_diffs
-        .then(|| find_key_diffs("", data1, data2, &working_context.lib_working_context));
-    let type_diff = working_context
-        .config
-        .check_for_type_diffs
-        .then(|| find_type_diffs("", data1, data2, &working_context.lib_working_context));
-    let value_diff = working_context
-        .config
-        .check_for_value_diffs
-        .then(|| find_value_diffs("", data1, data2, &working_context.lib_working_context));
-    let array_diff = working_context
-        .config
-        .check_for_array_diffs
-        .then(|| find_array_diffs("", data1, data2, &working_context.lib_working_context));
+    let key_diff = if working_context.config.check_for_key_diffs {
+        let mut checking_data: CheckingData<KeyDiff> =
+            CheckingData::new("", data1, data2, &working_context.lib_working_context);
+        checking_data.check();
+        Some(checking_data.diffs)
+    } else {
+        None
+    };
+    let type_diff = if working_context.config.check_for_type_diffs {
+        let mut checking_data: CheckingData<TypeDiff> =
+            CheckingData::new("", data1, data2, &working_context.lib_working_context);
+        checking_data.check();
+        Some(checking_data.diffs)
+    } else {
+        None
+    };
+    let value_diff = if working_context.config.check_for_value_diffs {
+        let mut checking_data: CheckingData<ValueDiff> =
+            CheckingData::new("", data1, data2, &working_context.lib_working_context);
+        checking_data.check();
+        Some(checking_data.diffs)
+    } else {
+        None
+    };
+    let array_diff = if working_context.config.check_for_array_diffs {
+        let mut checking_data: CheckingData<ArrayDiff> =
+            CheckingData::new("", data1, data2, &working_context.lib_working_context);
+        checking_data.check();
+        Some(checking_data.diffs)
+    } else {
+        None
+    };
 
     (key_diff, type_diff, value_diff, array_diff)
 }
@@ -274,8 +292,8 @@ pub fn render_tables(
     let mut tables = vec![];
     if working_context.config.render_key_diffs {
         if let Some(diffs) = key_diff.filter(|kd| !kd.is_empty()) {
-            let table = create_table_key_diff(&diffs, &working_context.lib_working_context);
-            tables.push(table);
+            let table = KeyTable::new(&diffs, &working_context.lib_working_context);
+            tables.push(table.table);
         }
     }
 
@@ -305,50 +323,6 @@ pub fn render_tables(
     }
 
     Ok(())
-}
-
-// Key table
-
-fn create_table_key_diff<'a>(data: &[KeyDiff], working_context: &LibWorkingContext) -> Table<'a> {
-    let mut table = Table::new();
-    table.max_column_width = 80;
-    table.style = TableStyle::extended();
-
-    add_key_table_header(&mut table, working_context);
-    add_key_table_rows(&mut table, data, working_context);
-
-    table
-}
-
-fn add_key_table_header(table: &mut Table, working_context: &LibWorkingContext) {
-    table.add_row(Row::new(vec![TableCell::new_with_alignment(
-        "Key Differences",
-        3,
-        Alignment::Center,
-    )]));
-    table.add_row(Row::new(vec![
-        TableCell::new("Key"),
-        TableCell::new(&working_context.file_a.name),
-        TableCell::new(&working_context.file_b.name),
-    ]));
-}
-
-fn add_key_table_rows(table: &mut Table, data: &[KeyDiff], working_context: &LibWorkingContext) {
-    for kd in data {
-        table.add_row(Row::new(vec![
-            TableCell::new(&kd.key),
-            TableCell::new(check_has(&working_context.file_a.name, kd)),
-            TableCell::new(check_has(&working_context.file_b.name, kd)),
-        ]));
-    }
-}
-
-fn check_has(file_name: &str, key_diff: &KeyDiff) -> ColoredString {
-    if key_diff.has == file_name {
-        CHECKMARK.color(Color::Green)
-    } else {
-        MULTIPLY.color(Color::Red)
-    }
 }
 
 // Type table
@@ -420,8 +394,8 @@ fn add_value_table_rows(table: &mut Table, data: &Vec<ValueDiff>) {
     for vd in data {
         table.add_row(Row::new(vec![
             TableCell::new(&vd.key),
-            TableCell::new(&sanitize_json_str(&vd.value1)),
-            TableCell::new(&sanitize_json_str(&vd.value2)),
+            TableCell::new(&prettyfy_json_str(&vd.value1)),
+            TableCell::new(&prettyfy_json_str(&vd.value2)),
         ]));
     }
 }
@@ -457,7 +431,7 @@ fn add_array_table_header(table: &mut Table, working_context: &LibWorkingContext
 
 fn add_array_table_rows(table: &mut Table, data: &Vec<ArrayDiff>) {
     for ad in data {
-        let value_str = sanitize_json_str(&ad.value);
+        let value_str = prettyfy_json_str(&ad.value);
         table.add_row(Row::new(vec![
             TableCell::new(&ad.key),
             TableCell::new(get_array_table_cell_value(&ad.descriptor, &value_str)),
@@ -477,7 +451,7 @@ fn get_array_table_cell_value<'a>(descriptor: &'a ArrayDiffDesc, value_str: &'a 
 
 // Utils
 
-fn sanitize_json_str(json_str: &str) -> String {
+fn prettyfy_json_str(json_str: &str) -> String {
     match serde_json::from_str::<Value>(json_str) {
         Ok(json_value) => serde_json::to_string_pretty(&json_value).unwrap_or(json_str.to_owned()),
         Err(_) => json_str.to_owned(),
