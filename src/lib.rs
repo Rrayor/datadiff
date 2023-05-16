@@ -1,7 +1,7 @@
 use std::{error::Error, fs::File, io::BufReader};
 
+use array_table::ArrayTable;
 use clap::{ArgGroup, Parser};
-use colored::{Color, ColoredString, Colorize};
 use dtfterminal_types::{
     Config, ConfigBuilder, DiffCollection, DtfError, LibConfig, LibWorkingContext, ParsedArgs,
     SavedConfig, SavedContext, WorkingContext,
@@ -9,18 +9,16 @@ use dtfterminal_types::{
 use key_table::KeyTable;
 use libdtf::{diff_types, read_json_file};
 use serde_json::{Map, Value};
-use term_table::{
-    row::Row,
-    table_cell::{Alignment, TableCell},
-    Table, TableStyle,
-};
 
-use diff_types::{
-    ArrayDiff, ArrayDiffDesc, Checker, CheckingData, KeyDiff, TypeDiff, ValueDiff, WorkingFile,
-};
+use diff_types::{ArrayDiff, Checker, CheckingData, KeyDiff, TypeDiff, ValueDiff, WorkingFile};
+use type_table::TypeTable;
+use value_table::ValueTable;
 
+mod array_table;
 pub mod dtfterminal_types;
 mod key_table;
+mod type_table;
+mod value_table;
 
 #[derive(Default, Parser, Debug)]
 #[clap(
@@ -68,9 +66,6 @@ struct Arguments {
     #[clap(short = 'o', default_value_t = false)]
     array_same_order: bool,
 }
-
-const CHECKMARK: &str = "\u{2713}";
-const MULTIPLY: &str = "\u{00D7}";
 
 pub fn parse_args() -> ParsedArgs {
     let args = Arguments::parse();
@@ -199,7 +194,7 @@ pub fn check_for_diffs(
         let mut checking_data: CheckingData<KeyDiff> =
             CheckingData::new("", data1, data2, &working_context.lib_working_context);
         checking_data.check();
-        Some(checking_data.diffs)
+        Some(checking_data.diffs()).cloned()
     } else {
         None
     };
@@ -207,7 +202,7 @@ pub fn check_for_diffs(
         let mut checking_data: CheckingData<TypeDiff> =
             CheckingData::new("", data1, data2, &working_context.lib_working_context);
         checking_data.check();
-        Some(checking_data.diffs)
+        Some(checking_data.diffs()).cloned()
     } else {
         None
     };
@@ -215,7 +210,7 @@ pub fn check_for_diffs(
         let mut checking_data: CheckingData<ValueDiff> =
             CheckingData::new("", data1, data2, &working_context.lib_working_context);
         checking_data.check();
-        Some(checking_data.diffs)
+        Some(checking_data.diffs()).cloned()
     } else {
         None
     };
@@ -223,7 +218,7 @@ pub fn check_for_diffs(
         let mut checking_data: CheckingData<ArrayDiff> =
             CheckingData::new("", data1, data2, &working_context.lib_working_context);
         checking_data.check();
-        Some(checking_data.diffs)
+        Some(checking_data.diffs()).cloned()
     } else {
         None
     };
@@ -299,22 +294,22 @@ pub fn render_tables(
 
     if working_context.config.render_type_diffs {
         if let Some(diffs) = type_diff.filter(|td| !td.is_empty()) {
-            let table = create_table_type_diff(&diffs, &working_context.lib_working_context);
-            tables.push(table);
+            let table = TypeTable::new(&diffs, &working_context.lib_working_context);
+            tables.push(table.table);
         }
     }
 
     if working_context.config.render_value_diffs {
         if let Some(diffs) = value_diff.filter(|vd| !vd.is_empty()) {
-            let table = create_table_value_diff(&diffs, &working_context.lib_working_context);
-            tables.push(table);
+            let table = ValueTable::new(&diffs, &working_context.lib_working_context);
+            tables.push(table.table);
         }
     }
 
     if working_context.config.render_array_diffs {
         if let Some(diffs) = array_diff.filter(|ad| !ad.is_empty()) {
-            let table = create_table_array_diff(&diffs, &working_context.lib_working_context);
-            tables.push(table);
+            let table = ArrayTable::new(&diffs, &working_context.lib_working_context);
+            tables.push(table.table);
         }
     }
 
@@ -323,130 +318,6 @@ pub fn render_tables(
     }
 
     Ok(())
-}
-
-// Type table
-
-fn create_table_type_diff<'a>(data: &[TypeDiff], working_context: &LibWorkingContext) -> Table<'a> {
-    let mut table = Table::new();
-    table.max_column_width = 80;
-    table.style = TableStyle::extended();
-
-    add_type_table_header(&mut table, working_context);
-    add_type_table_rows(&mut table, data);
-
-    table
-}
-
-fn add_type_table_header(table: &mut Table, working_context: &LibWorkingContext) {
-    table.add_row(Row::new(vec![TableCell::new_with_alignment(
-        "Type Differences",
-        3,
-        Alignment::Center,
-    )]));
-    table.add_row(Row::new(vec![
-        TableCell::new("Key"),
-        TableCell::new(&working_context.file_a.name),
-        TableCell::new(&working_context.file_b.name),
-    ]));
-}
-
-fn add_type_table_rows(table: &mut Table, data: &[TypeDiff]) {
-    for td in data {
-        table.add_row(Row::new(vec![
-            TableCell::new(&td.key),
-            TableCell::new(&td.type1),
-            TableCell::new(&td.type2),
-        ]));
-    }
-}
-
-// Value table
-
-fn create_table_value_diff<'a>(
-    data: &Vec<ValueDiff>,
-    working_context: &LibWorkingContext,
-) -> Table<'a> {
-    let mut table = Table::new();
-    table.max_column_width = 80;
-    table.style = TableStyle::extended();
-
-    add_value_table_header(&mut table, working_context);
-    add_value_table_rows(&mut table, data);
-
-    table
-}
-
-fn add_value_table_header(table: &mut Table, working_context: &LibWorkingContext) {
-    table.add_row(Row::new(vec![TableCell::new_with_alignment(
-        "Value Differences",
-        3,
-        Alignment::Center,
-    )]));
-    table.add_row(Row::new(vec![
-        TableCell::new("Key"),
-        TableCell::new(&working_context.file_a.name),
-        TableCell::new(&working_context.file_b.name),
-    ]));
-}
-
-fn add_value_table_rows(table: &mut Table, data: &Vec<ValueDiff>) {
-    for vd in data {
-        table.add_row(Row::new(vec![
-            TableCell::new(&vd.key),
-            TableCell::new(&prettyfy_json_str(&vd.value1)),
-            TableCell::new(&prettyfy_json_str(&vd.value2)),
-        ]));
-    }
-}
-
-// Array table
-
-fn create_table_array_diff<'a>(
-    data: &Vec<ArrayDiff>,
-    working_context: &LibWorkingContext,
-) -> Table<'a> {
-    let mut table = Table::new();
-    table.max_column_width = 80;
-    table.style = TableStyle::extended();
-
-    add_array_table_header(&mut table, working_context);
-    add_array_table_rows(&mut table, data);
-
-    table
-}
-
-fn add_array_table_header(table: &mut Table, working_context: &LibWorkingContext) {
-    table.add_row(Row::new(vec![TableCell::new_with_alignment(
-        "Array Differences",
-        3,
-        Alignment::Center,
-    )]));
-    table.add_row(Row::new(vec![
-        TableCell::new("Key"),
-        TableCell::new(&working_context.file_a.name),
-        TableCell::new(&working_context.file_b.name),
-    ]));
-}
-
-fn add_array_table_rows(table: &mut Table, data: &Vec<ArrayDiff>) {
-    for ad in data {
-        let value_str = prettyfy_json_str(&ad.value);
-        table.add_row(Row::new(vec![
-            TableCell::new(&ad.key),
-            TableCell::new(get_array_table_cell_value(&ad.descriptor, &value_str)),
-            TableCell::new(get_array_table_cell_value(&ad.descriptor, &value_str)),
-        ]));
-    }
-}
-
-fn get_array_table_cell_value<'a>(descriptor: &'a ArrayDiffDesc, value_str: &'a str) -> &'a str {
-    match descriptor {
-        ArrayDiffDesc::AHas => value_str,
-        ArrayDiffDesc::AMisses => value_str,
-        ArrayDiffDesc::BHas => value_str,
-        ArrayDiffDesc::BMisses => value_str,
-    }
 }
 
 // Utils
