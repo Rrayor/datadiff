@@ -6,26 +6,16 @@ use term_table::{
     Table, TableStyle,
 };
 
-use crate::dtfterminal_types::LibWorkingContext;
+use crate::dtfterminal_types::{LibWorkingContext, TableContext, TermTable};
 
 const CHECKMARK: &str = "\u{2713}";
 const MULTIPLY: &str = "\u{00D7}";
 
 pub struct KeyTable<'a> {
-    working_context: &'a LibWorkingContext,
-    pub table: Table<'a>,
+    context: &'a TableContext<'a>,
 }
 
-impl<'a> KeyTable<'a> {
-    pub fn new(data: &[KeyDiff], working_context: &'a LibWorkingContext) -> KeyTable<'a> {
-        let mut table = KeyTable {
-            working_context,
-            table: Table::new(),
-        };
-        table.create_table(data);
-        table
-    }
-
+impl<'a> TermTable<KeyDiff> for KeyTable<'a> {
     fn create_table(&mut self, data: &[KeyDiff]) {
         let mut table = Table::new();
         table.max_column_width = 80;
@@ -34,30 +24,39 @@ impl<'a> KeyTable<'a> {
         self.add_header();
         self.add_rows(data);
 
-        self.table = table;
+        self.context.set_table(table);
     }
 
     fn add_header(&mut self) {
-        self.table
+        self.context
+            .table()
             .add_row(Row::new(vec![TableCell::new_with_alignment(
                 "Key Differences",
                 3,
                 Alignment::Center,
             )]));
-        self.table.add_row(Row::new(vec![
+        self.context.table().add_row(Row::new(vec![
             TableCell::new("Key"),
-            TableCell::new(&self.working_context.file_a.name),
-            TableCell::new(&self.working_context.file_b.name),
+            TableCell::new(&self.context.working_context().file_a.name),
+            TableCell::new(&self.context.working_context().file_b.name),
         ]));
     }
 
-    pub fn add_rows(&mut self, data: &[KeyDiff]) {
+    fn add_rows(&mut self, data: &[KeyDiff]) {
         for kd in data {
-            self.table.add_row(Row::new(vec![
+            self.context.table().add_row(Row::new(vec![
                 TableCell::new(&kd.key),
-                TableCell::new(self.check_has(&self.working_context.file_a.name, kd)),
-                TableCell::new(self.check_has(&self.working_context.file_b.name, kd)),
+                TableCell::new(self.check_has(&self.context.working_context().file_a.name, kd)),
+                TableCell::new(self.check_has(&self.context.working_context().file_b.name, kd)),
             ]));
+        }
+    }
+}
+
+impl<'a> KeyTable<'a> {
+    pub fn new(working_context: &LibWorkingContext) -> KeyTable {
+        KeyTable {
+            context: &TableContext::new(working_context),
         }
     }
 

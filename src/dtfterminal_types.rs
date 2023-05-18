@@ -1,11 +1,44 @@
 use std::{error::Error, fmt};
 
-use libdtf::diff_types::{ArrayDiff, KeyDiff, TypeDiff, ValueDiff};
+use libdtf::diff_types::{ArrayDiff, Diff, KeyDiff, TypeDiff, ValueDiff};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use term_table::Table;
 
 pub type LibConfig = libdtf::diff_types::Config;
 pub type LibWorkingContext = libdtf::diff_types::WorkingContext;
+
+pub struct TableContext<'a> {
+    working_context: &'a LibWorkingContext,
+    table: Table<'a>,
+}
+
+impl<'a> TableContext<'a> {
+    pub fn new(working_context: &'a LibWorkingContext) -> TableContext {
+        TableContext {
+            working_context,
+            table: Table::new(),
+        }
+    }
+
+    pub fn working_context(&self) -> &'a LibWorkingContext {
+        self.working_context
+    }
+
+    pub fn table(&self) -> &'a mut Table {
+        &mut self.table
+    }
+
+    pub fn set_table(&self, table: Table) {
+        self.table = table;
+    }
+}
+
+pub trait TermTable<T: Diff> {
+    fn create_table(&mut self, data: &[T]);
+    fn add_header(&mut self);
+    fn add_rows(&mut self, data: &[T]);
+}
 
 pub type ParsedArgs = (
     Option<Map<String, Value>>,
