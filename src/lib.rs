@@ -7,12 +7,17 @@ use dtfterminal_types::{
     SavedConfig, SavedContext, WorkingContext,
 };
 use key_table::KeyTable;
-use libdtf::{diff_types, read_json_file};
+use libdtf::{
+    diff_types::{self},
+    read_json_file,
+};
 use serde_json::{Map, Value};
 
 use diff_types::{ArrayDiff, Checker, CheckingData, KeyDiff, TypeDiff, ValueDiff, WorkingFile};
 use type_table::TypeTable;
 use value_table::ValueTable;
+
+use crate::dtfterminal_types::TermTable;
 
 mod array_table;
 pub mod dtfterminal_types;
@@ -277,44 +282,44 @@ pub fn write_to_file(
     }
 }
 
-pub fn render_tables(
+pub fn render_tables<'a>(
     key_diff: Option<Vec<KeyDiff>>,
     type_diff: Option<Vec<TypeDiff>>,
     value_diff: Option<Vec<ValueDiff>>,
     array_diff: Option<Vec<ArrayDiff>>,
     working_context: &WorkingContext,
 ) -> Result<(), DtfError> {
-    let mut tables = vec![];
+    let mut rendered_tables = vec![];
     if working_context.config.render_key_diffs {
         if let Some(diffs) = key_diff.filter(|kd| !kd.is_empty()) {
-            let table = KeyTable::new(&working_context.lib_working_context);
-            tables.push(table.table());
+            let table = KeyTable::new(&diffs, &working_context.lib_working_context);
+            rendered_tables.push(table.render());
         }
     }
 
     if working_context.config.render_type_diffs {
         if let Some(diffs) = type_diff.filter(|td| !td.is_empty()) {
             let table = TypeTable::new(&diffs, &working_context.lib_working_context);
-            tables.push(table.table());
+            rendered_tables.push(table.render());
         }
     }
 
     if working_context.config.render_value_diffs {
         if let Some(diffs) = value_diff.filter(|vd| !vd.is_empty()) {
             let table = ValueTable::new(&diffs, &working_context.lib_working_context);
-            tables.push(table.table());
+            rendered_tables.push(table.render());
         }
     }
 
     if working_context.config.render_array_diffs {
         if let Some(diffs) = array_diff.filter(|ad| !ad.is_empty()) {
             let table = ArrayTable::new(&diffs, &working_context.lib_working_context);
-            tables.push(table.table());
+            rendered_tables.push(table.render());
         }
     }
 
-    for table in tables {
-        println!("{}", table.render());
+    for table in rendered_tables {
+        println!("{}", table);
     }
 
     Ok(())

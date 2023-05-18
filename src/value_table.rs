@@ -2,52 +2,65 @@ use libdtf::diff_types::ValueDiff;
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
-    Table, TableStyle,
 };
 
 use crate::{
-    dtfterminal_types::{TableContext, TermTable},
+    dtfterminal_types::{LibWorkingContext, TableContext, TermTable},
     prettyfy_json_str,
 };
 
 pub struct ValueTable<'a> {
-    context: &'a TableContext<'a>,
+    context: TableContext<'a>,
 }
 
 impl<'a> TermTable<ValueDiff> for ValueTable<'a> {
-    fn create_table(&mut self, data: &[ValueDiff]) {
-        let mut table = Table::new();
-        table.max_column_width = 80;
-        table.style = TableStyle::extended();
+    fn render(&self) -> String {
+        self.context.render()
+    }
 
+    fn create_table(&mut self, data: &[ValueDiff]) {
         self.add_header();
         self.add_rows(data);
-
-        self.context.set_table(table);
     }
 
     fn add_header(&mut self) {
+        // TODO: This may need a cleanup. I can only hold 1 reference to self in a scope, if that's mutable.
+        let file_name_a;
+        let file_name_b;
+        {
+            file_name_a = self.context.working_context().file_a.name.as_str();
+            file_name_b = self.context.working_context().file_b.name.as_str();
+        }
         self.context
-            .table()
             .add_row(Row::new(vec![TableCell::new_with_alignment(
                 "Value Differences",
                 3,
                 Alignment::Center,
             )]));
-        self.context.table().add_row(Row::new(vec![
+        self.context.add_row(Row::new(vec![
             TableCell::new("Key"),
-            TableCell::new(&self.context.working_context().file_a.name),
-            TableCell::new(&self.context.working_context().file_b.name),
+            TableCell::new(file_name_a),
+            TableCell::new(file_name_b),
         ]));
     }
 
     fn add_rows(&mut self, data: &[ValueDiff]) {
         for vd in data {
-            self.context.table().add_row(Row::new(vec![
+            self.context.add_row(Row::new(vec![
                 TableCell::new(&vd.key),
                 TableCell::new(&prettyfy_json_str(&vd.value1)),
                 TableCell::new(&prettyfy_json_str(&vd.value2)),
             ]));
         }
+    }
+}
+
+impl<'a> ValueTable<'a> {
+    pub fn new(data: &Vec<ValueDiff>, working_context: &'a LibWorkingContext) -> ValueTable<'a> {
+        let mut table = ValueTable {
+            context: TableContext::new(working_context),
+        };
+        table.create_table(data);
+        table
     }
 }

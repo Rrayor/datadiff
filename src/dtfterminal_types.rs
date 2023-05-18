@@ -3,7 +3,7 @@ use std::{error::Error, fmt};
 use libdtf::diff_types::{ArrayDiff, Diff, KeyDiff, TypeDiff, ValueDiff};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use term_table::Table;
+use term_table::{row::Row, Table, TableStyle};
 
 pub type LibConfig = libdtf::diff_types::Config;
 pub type LibWorkingContext = libdtf::diff_types::WorkingContext;
@@ -15,9 +15,12 @@ pub struct TableContext<'a> {
 
 impl<'a> TableContext<'a> {
     pub fn new(working_context: &'a LibWorkingContext) -> TableContext {
+        let mut table = Table::new();
+        table.max_column_width = 80;
+        table.style = TableStyle::extended();
         TableContext {
             working_context,
-            table: Table::new(),
+            table,
         }
     }
 
@@ -25,16 +28,21 @@ impl<'a> TableContext<'a> {
         self.working_context
     }
 
-    pub fn table(&self) -> &'a mut Table {
-        &mut self.table
+    pub fn set_table(&mut self, table: Table<'a>) {
+        self.table = table;
     }
 
-    pub fn set_table(&self, table: Table) {
-        self.table = table;
+    pub fn add_row(&mut self, row: Row<'a>) {
+        self.table.add_row(row);
+    }
+
+    pub fn render(&self) -> String {
+        self.table.render()
     }
 }
 
 pub trait TermTable<T: Diff> {
+    fn render(&self) -> String;
     fn create_table(&mut self, data: &[T]);
     fn add_header(&mut self);
     fn add_rows(&mut self, data: &[T]);

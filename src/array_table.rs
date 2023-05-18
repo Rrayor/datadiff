@@ -2,7 +2,6 @@ use libdtf::diff_types::{ArrayDiff, ArrayDiffDesc};
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
-    Table, TableStyle,
 };
 
 use crate::{
@@ -11,43 +10,54 @@ use crate::{
 };
 
 pub struct ArrayTable<'a> {
-    context: &'a TableContext<'a>,
+    context: TableContext<'a>,
 }
 
 impl<'a> TermTable<ArrayDiff> for ArrayTable<'a> {
-    fn create_table(&mut self, data: &[ArrayDiff]) {
-        let mut table = Table::new();
-        table.max_column_width = 80;
-        table.style = TableStyle::extended();
+    fn render(&self) -> String {
+        self.context.render()
+    }
 
+    fn create_table(&mut self, data: &[ArrayDiff]) {
         self.add_header();
         self.add_rows(data);
-
-        self.context.set_table(table);
     }
 
     fn add_header(&mut self) {
+        // TODO: This may need a cleanup. I can only hold 1 reference to self in a scope, if that's mutable.
+        let file_name_a;
+        let file_name_b;
+        {
+            file_name_a = self.context.working_context().file_a.name.as_str();
+            file_name_b = self.context.working_context().file_b.name.as_str();
+        }
         self.context
-            .table()
             .add_row(Row::new(vec![TableCell::new_with_alignment(
                 "Array Differences",
                 3,
                 Alignment::Center,
             )]));
-        self.context.table().add_row(Row::new(vec![
+        self.context.add_row(Row::new(vec![
             TableCell::new("Key"),
-            TableCell::new(&self.context.working_context().file_a.name),
-            TableCell::new(&self.context.working_context().file_b.name),
+            TableCell::new(file_name_a),
+            TableCell::new(file_name_b),
         ]));
     }
 
     fn add_rows(&mut self, data: &[ArrayDiff]) {
         for ad in data {
             let value_str = prettyfy_json_str(&ad.value);
-            self.context.table().add_row(Row::new(vec![
+            // TODO: This may need a cleanup. I can only hold 1 reference to self in a scope, if that's mutable.
+            let cell_value_1;
+            let cell_value_2;
+            {
+                cell_value_1 = self.get_cell_value(&ad.descriptor, &value_str).to_owned();
+                cell_value_2 = self.get_cell_value(&ad.descriptor, &value_str).to_owned();
+            }
+            self.context.add_row(Row::new(vec![
                 TableCell::new(&ad.key),
-                TableCell::new(self.get_cell_value(&ad.descriptor, &value_str)),
-                TableCell::new(self.get_cell_value(&ad.descriptor, &value_str)),
+                TableCell::new(cell_value_1),
+                TableCell::new(cell_value_2),
             ]));
         }
     }
@@ -56,14 +66,10 @@ impl<'a> TermTable<ArrayDiff> for ArrayTable<'a> {
 impl<'a> ArrayTable<'a> {
     pub fn new(data: &[ArrayDiff], working_context: &'a LibWorkingContext) -> ArrayTable<'a> {
         let mut table = ArrayTable {
-            context: &TableContext::new(working_context),
+            context: TableContext::new(working_context),
         };
         table.create_table(data);
         table
-    }
-
-    pub fn table(&self) -> &Table {
-        &self.context.table()
     }
 
     fn get_cell_value(&'a self, descriptor: &'a ArrayDiffDesc, value_str: &'a str) -> &'a str {
