@@ -8,6 +8,7 @@ use term_table::{row::Row, Table, TableStyle};
 pub type LibConfig = libdtf::diff_types::Config;
 pub type LibWorkingContext = libdtf::diff_types::WorkingContext;
 
+/// Stores the data required for rendering a table of the differences
 pub struct TableContext<'a> {
     working_context: &'a LibWorkingContext,
     table: Table<'a>,
@@ -24,23 +25,28 @@ impl<'a> TableContext<'a> {
         }
     }
 
+    /// Returns the current context of the table
     pub fn working_context(&self) -> &'a LibWorkingContext {
         self.working_context
     }
 
+    /// Sets the actual table (term_table::Table)
     pub fn set_table(&mut self, table: Table<'a>) {
         self.table = table;
     }
 
+    /// Adds a row to the table
     pub fn add_row(&mut self, row: Row<'a>) {
         self.table.add_row(row);
     }
 
+    /// Returns the built table string
     pub fn render(&self) -> String {
         self.table.render()
     }
 }
 
+/// Gives tables the required functionality
 pub trait TermTable<T: Diff> {
     fn render(&self) -> String;
     fn create_table(&mut self, data: &[T]);
@@ -48,11 +54,14 @@ pub trait TermTable<T: Diff> {
     fn add_rows(&mut self, data: &[T]);
 }
 
+/// The data structure arguments are needed to be stored in
 pub type ParsedArgs = (
     Option<Map<String, Value>>,
     Option<Map<String, Value>>,
     Config,
 );
+
+/// How we move the result of diff checking around
 pub type DiffCollection = (
     Option<Vec<KeyDiff>>,
     Option<Vec<TypeDiff>>,
@@ -60,6 +69,7 @@ pub type DiffCollection = (
     Option<Vec<ArrayDiff>>,
 );
 
+/// The structure a result set gets saved in for later re-use
 #[derive(Serialize, Deserialize)]
 pub struct SavedConfig {
     pub check_for_key_diffs: bool,
@@ -93,6 +103,7 @@ impl SavedConfig {
     }
 }
 
+/// The structure the runtime configurations are stored in
 #[derive(Clone)]
 pub struct Config {
     pub check_for_key_diffs: bool,
@@ -110,6 +121,7 @@ pub struct Config {
     pub array_same_order: bool,
 }
 
+/// Helper class for creating Config instances
 #[derive(Default)]
 pub struct ConfigBuilder {
     check_for_key_diffs: bool,
@@ -230,6 +242,7 @@ impl ConfigBuilder {
     }
 }
 
+/// Contextual data for the current run
 #[derive(Clone)]
 pub struct WorkingContext {
     pub lib_working_context: LibWorkingContext,
@@ -245,6 +258,7 @@ impl WorkingContext {
     }
 }
 
+/// How a WorkingContext gets stored on disk
 #[derive(Serialize, Deserialize)]
 pub struct SavedContext {
     pub key_diff: Vec<KeyDiff>,
@@ -272,6 +286,7 @@ impl SavedContext {
     }
 }
 
+/// Custom Error type
 #[derive(Debug)]
 pub enum DtfError {
     IoError(std::io::Error),

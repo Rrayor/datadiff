@@ -11,6 +11,7 @@ mod key_table;
 mod type_table;
 mod value_table;
 
+/// Command line arguments are handled here by clap
 #[derive(Default, Parser, Debug)]
 #[clap(
     version,
@@ -64,6 +65,7 @@ pub fn run() -> Result<(), DtfError> {
 
 // Utils
 
+/// Formats JSON strings
 fn prettyfy_json_str(json_str: &str) -> String {
     match serde_json::from_str::<Value>(json_str) {
         Ok(json_value) => serde_json::to_string_pretty(&json_value).unwrap_or(json_str.to_owned()),

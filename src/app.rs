@@ -19,6 +19,7 @@ use libdtf::diff_types::{
 };
 use serde_json::{Map, Value};
 
+/// Responsible for the main functionality of the app. Makes sure everything runs in the correct order.
 pub struct App {
     data1: Option<Map<String, Value>>,
     data2: Option<Map<String, Value>>,
@@ -28,6 +29,9 @@ pub struct App {
 }
 
 impl App {
+    /// Creates a new App instance
+    /// 1. Parses the command line arguments
+    /// 2. Checks for differences and stores them
     pub fn new() -> App {
         let (data1, data2, config) = App::parse_args();
         let mut file_handler = FileHandler::new(config.clone(), None);
@@ -54,6 +58,7 @@ impl App {
         app
     }
 
+    /// Handles the output into file or to the terminal
     pub fn execute(&self) -> Result<(), DtfError> {
         if self.context.config.write_to_file.is_some() {
             self.file_handler
