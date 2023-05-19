@@ -1,6 +1,6 @@
 use std::{error::Error, fs::File, io::BufReader};
 
-use libdtf::diff_types::WorkingFile;
+use libdtf::{diff_types::WorkingFile, read_json_file};
 
 use crate::dtfterminal_types::{
     Config, ConfigBuilder, DiffCollection, DtfError, LibConfig, LibWorkingContext, SavedConfig,
@@ -8,21 +8,68 @@ use crate::dtfterminal_types::{
 };
 
 pub struct FileHandler {
-    user_config: Option<Config>,
+    user_config: Config,
     saved_config: Option<SavedConfig>,
 }
 
 impl FileHandler {
-    fn load_saved_results(&self) -> Result<(DiffCollection, WorkingContext), Box<dyn Error>> {
-        if self.user_config.is_none() {
-            panic!("Config options are missing!")
+    pub fn new(user_config: Config, saved_config: Option<SavedConfig>) -> FileHandler {
+        FileHandler {
+            user_config,
+            saved_config,
         }
+    }
 
-        let saved_data = match self.read_from_file(&self.user_config.unwrap().read_from_file) {
+    pub fn read_json_file(
+        file_path: &str,
+    ) -> Result<serde_json::Map<String, serde_json::Value>, serde_json::Error> {
+        read_json_file(file_path)
+    }
+
+    pub fn write_to_file(&self, diffs: DiffCollection) -> Result<(), DtfError> {
+        let (key_diff_option, type_diff_option, value_diff_option, array_diff_option) = diffs;
+        let key_diff = key_diff_option.unwrap_or_default();
+        let type_diff = type_diff_option.unwrap_or_default();
+        let value_diff = value_diff_option.unwrap_or_default();
+        let array_diff = array_diff_option.unwrap_or_default();
+
+        let config = &self.user_config;
+        if config.write_to_file.is_none() {
+            panic!("File write path is missing!")
+        }
+        let file = File::create(config.write_to_file.as_ref().unwrap());
+
+        match serde_json::to_writer(
+            &mut file.unwrap(),
+            &SavedContext::new(
+                key_diff,
+                type_diff,
+                value_diff,
+                array_diff,
+                SavedConfig::new(
+                    config.check_for_key_diffs,
+                    config.check_for_type_diffs,
+                    config.check_for_value_diffs,
+                    config.check_for_array_diffs,
+                    config.file_a.clone().unwrap(),
+                    config.file_b.clone().unwrap(),
+                    config.array_same_order,
+                ),
+            ),
+        ) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(DtfError::IoError(e.into())),
+        }
+    }
+
+    pub fn load_saved_results(
+        &mut self,
+    ) -> Result<(DiffCollection, WorkingContext), Box<dyn Error>> {
+        let saved_data = match self.read_from_file(&self.user_config.read_from_file) {
             Ok(data) => data,
             Err(e) => return Err(Box::new(DtfError::IoError(e.into()))),
         };
-        let saved_config = saved_data.config;
+        self.saved_config = Some(saved_data.config);
 
         let diff_collection = (
             Some(saved_data.key_diff),
@@ -41,12 +88,8 @@ impl FileHandler {
             panic!("Saved data is corrupted! Config options not present!")
         }
 
-        if self.user_config.is_none() {
-            panic!("Config options not present!")
-        }
-
-        let saved_config = self.saved_config.unwrap();
-        let user_config = self.user_config.unwrap();
+        let saved_config = self.saved_config.as_ref().unwrap();
+        let user_config = &self.user_config;
 
         let file_a = WorkingFile::new(saved_config.file_a.clone());
         let file_b = WorkingFile::new(saved_config.file_b.clone());
@@ -80,42 +123,5 @@ impl FileHandler {
             File::open(file_path).unwrap_or_else(|_| panic!("Could not open file {}", file_path));
         let reader = BufReader::new(file);
         serde_json::from_reader(reader)
-    }
-
-    fn write_to_file(&self, diffs: DiffCollection, file_path: &str) -> Result<(), DtfError> {
-        if self.user_config.is_none() {
-            panic!("Config options not present!")
-        }
-
-        let (key_diff_option, type_diff_option, value_diff_option, array_diff_option) = diffs;
-        let key_diff = key_diff_option.unwrap_or_default();
-        let type_diff = type_diff_option.unwrap_or_default();
-        let value_diff = value_diff_option.unwrap_or_default();
-        let array_diff = array_diff_option.unwrap_or_default();
-
-        let file = File::create(file_path);
-        let config = &self.user_config.unwrap();
-
-        match serde_json::to_writer(
-            &mut file.unwrap(),
-            &SavedContext::new(
-                key_diff,
-                type_diff,
-                value_diff,
-                array_diff,
-                SavedConfig::new(
-                    config.check_for_key_diffs,
-                    config.check_for_type_diffs,
-                    config.check_for_value_diffs,
-                    config.check_for_array_diffs,
-                    config.file_a.clone().unwrap(),
-                    config.file_b.clone().unwrap(),
-                    config.array_same_order,
-                ),
-            ),
-        ) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(DtfError::IoError(e.into())),
-        }
     }
 }
