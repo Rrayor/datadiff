@@ -24,13 +24,9 @@ impl<'a> TermTable<ValueDiff> for ValueTable<'a> {
     }
 
     fn add_header(&mut self) {
-        // TODO: This may need a cleanup. I can only hold 1 reference to self in a scope, if that's mutable.
-        let file_name_a;
-        let file_name_b;
-        {
-            file_name_a = self.context.working_context().file_a.name.as_str();
-            file_name_b = self.context.working_context().file_b.name.as_str();
-        }
+        let (file_name_a_str, file_name_b_str) = self.get_file_names();
+        let file_name_a = file_name_a_str.to_owned();
+        let file_name_b = file_name_b_str.to_owned();
         self.context
             .add_row(Row::new(vec![TableCell::new_with_alignment(
                 "Value Differences",
@@ -62,5 +58,11 @@ impl<'a> ValueTable<'a> {
         };
         table.create_table(data);
         table
+    }
+
+    fn get_file_names(&mut self) -> (&str, &str) {
+        let file_name_a = self.context.working_context().file_a.name.as_str();
+        let file_name_b = self.context.working_context().file_b.name.as_str();
+        (file_name_a, file_name_b)
     }
 }

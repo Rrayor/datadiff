@@ -25,45 +25,22 @@ impl<'a> TermTable<KeyDiff> for KeyTable<'a> {
     }
 
     fn add_header(&mut self) {
-        // TODO: This may need a cleanup. I can only hold 1 reference to self in a scope, if that's mutable.
-        let file_name_a;
-        let file_name_b;
-        {
-            file_name_a = self.context.working_context().file_a.name.as_str();
-            file_name_b = self.context.working_context().file_b.name.as_str();
-        }
-        {
-            self.context
-                .add_row(Row::new(vec![TableCell::new_with_alignment(
-                    "Key Differences",
-                    3,
-                    Alignment::Center,
-                )]));
-        }
-        {
-            self.context.add_row(Row::new(vec![
-                TableCell::new("Key"),
-                TableCell::new(file_name_a),
-                TableCell::new(file_name_b),
-            ]));
-        }
+        let (file_name_a_str, file_name_b_str) = self.get_file_names();
+        let file_name_a = file_name_a_str.to_owned();
+        let file_name_b = file_name_b_str.to_owned();
+        self.add_title_row();
+        self.add_file_name_row(file_name_a, file_name_b);
     }
 
     fn add_rows(&mut self, data: &[KeyDiff]) {
-        // TODO: This may need a cleanup. I can only hold 1 reference to self in a scope, if that's mutable.
-        let file_name_a;
-        let file_name_b;
-        {
-            file_name_a = self.context.working_context().file_a.name.as_str();
-            file_name_b = self.context.working_context().file_b.name.as_str();
-        }
+        let (file_name_a_str, file_name_b_str) = self.get_file_names();
+        let file_name_a = file_name_a_str.to_owned();
+        let file_name_b = file_name_b_str.to_owned();
         for kd in data {
             let a_has;
             let b_has;
-            {
-                a_has = self.check_has(file_name_a, kd);
-                b_has = self.check_has(file_name_b, kd);
-            }
+            a_has = self.check_has(file_name_a.as_str(), kd);
+            b_has = self.check_has(file_name_b.as_str(), kd);
             self.context.add_row(Row::new(vec![
                 TableCell::new(&kd.key),
                 TableCell::new(a_has),
@@ -88,5 +65,28 @@ impl<'a> KeyTable<'a> {
         } else {
             MULTIPLY.color(Color::Red)
         }
+    }
+
+    fn get_file_names(&mut self) -> (&str, &str) {
+        let file_name_a = self.context.working_context().file_a.name.as_str();
+        let file_name_b = self.context.working_context().file_b.name.as_str();
+        (file_name_a, file_name_b)
+    }
+
+    fn add_title_row(&mut self) {
+        self.context
+            .add_row(Row::new(vec![TableCell::new_with_alignment(
+                "Key Differences",
+                3,
+                Alignment::Center,
+            )]));
+    }
+
+    fn add_file_name_row(&mut self, file_name_a: String, file_name_b: String) {
+        self.context.add_row(Row::new(vec![
+            TableCell::new("Key"),
+            TableCell::new(file_name_a),
+            TableCell::new(file_name_b),
+        ]));
     }
 }
