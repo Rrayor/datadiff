@@ -1,5 +1,6 @@
 use std::{error::Error, fs::File, io::BufReader};
 
+use app::App;
 use array_table::ArrayTable;
 use clap::{ArgGroup, Parser};
 use dtfterminal_types::{
@@ -19,8 +20,10 @@ use value_table::ValueTable;
 
 use crate::dtfterminal_types::TermTable;
 
+mod app;
 mod array_table;
 pub mod dtfterminal_types;
+mod file_handler;
 mod key_table;
 mod type_table;
 mod value_table;
@@ -72,7 +75,27 @@ struct Arguments {
     array_same_order: bool,
 }
 
-pub fn parse_args() -> ParsedArgs {
+pub fn run() -> Result<(), DtfError> {
+    App::new().execute()
+}
+
+fn init() -> (DiffCollection, WorkingContext) {
+    let (data1, data2, config) = parse_args();
+    collect_data(data1, data2, &config)
+}
+
+fn execute(diffs: DiffCollection, working_context: &WorkingContext) -> Result<(), DtfError> {
+    if working_context.config.write_to_file.is_some() {
+        write_to_file(diffs, &working_context).map_err(|e| DtfError::GeneralError(Box::new(e)))?;
+    } else {
+        render_tables(diffs, &working_context)
+            .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+    }
+
+    Ok(())
+}
+
+fn parse_args() -> ParsedArgs {
     let args = Arguments::parse();
 
     let (data1, data2) = if args.read_from_file.is_empty() {
@@ -104,19 +127,19 @@ pub fn parse_args() -> ParsedArgs {
     (data1, data2, config)
 }
 
-pub fn collect_data(
+fn collect_data(
     data1: Option<Map<String, Value>>,
     data2: Option<Map<String, Value>>,
     user_config: &Config,
 ) -> (DiffCollection, WorkingContext) {
     if user_config.read_from_file.is_empty() {
-        collect_data_new_check(data1, data2, user_config).expect("Data check failed!")
+        perform_new_check(data1, data2, user_config).expect("Data check failed!")
     } else {
-        collect_data_load(user_config).expect("Could not load saved file!")
+        load_saved_results(user_config).expect("Could not load saved file!")
     }
 }
 
-fn collect_data_new_check(
+fn perform_new_check(
     data1: Option<Map<String, Value>>,
     data2: Option<Map<String, Value>>,
     user_config: &Config,
@@ -138,59 +161,7 @@ fn collect_data_new_check(
     Ok((diffs, working_context))
 }
 
-fn collect_data_load(
-    user_config: &Config,
-) -> Result<(DiffCollection, WorkingContext), Box<dyn Error>> {
-    let saved_data = match read_from_file(&user_config.read_from_file) {
-        Ok(data) => data,
-        Err(e) => return Err(Box::new(DtfError::IoError(e.into()))),
-    };
-    let saved_config = saved_data.config;
-
-    let diff_collection = (
-        Some(saved_data.key_diff),
-        Some(saved_data.type_diff),
-        Some(saved_data.value_diff),
-        Some(saved_data.array_diff),
-    );
-
-    let working_context = build_working_context_from_loaded_data(&saved_config, user_config);
-
-    Ok((diff_collection, working_context))
-}
-
-fn build_working_context_from_loaded_data(
-    saved_config: &SavedConfig,
-    user_config: &Config,
-) -> WorkingContext {
-    let file_a = WorkingFile::new(saved_config.file_a.clone());
-    let file_b = WorkingFile::new(saved_config.file_b.clone());
-    let lib_working_context = LibWorkingContext::new(
-        file_a,
-        file_b,
-        LibConfig::new(saved_config.array_same_order),
-    );
-    WorkingContext::new(
-        lib_working_context,
-        ConfigBuilder::new()
-            .check_for_key_diffs(saved_config.check_for_key_diffs)
-            .check_for_type_diffs(saved_config.check_for_type_diffs)
-            .check_for_value_diffs(saved_config.check_for_value_diffs)
-            .check_for_array_diffs(saved_config.check_for_array_diffs)
-            .render_key_diffs(user_config.render_key_diffs)
-            .render_type_diffs(user_config.render_type_diffs)
-            .render_value_diffs(user_config.render_value_diffs)
-            .render_array_diffs(user_config.render_array_diffs)
-            .read_from_file(user_config.read_from_file.clone())
-            .write_to_file(user_config.write_to_file.clone())
-            .file_a(Some(saved_config.file_a.clone()))
-            .file_b(Some(saved_config.file_b.clone()))
-            .array_same_order(saved_config.array_same_order)
-            .build(),
-    )
-}
-
-pub fn check_for_diffs(
+fn check_for_diffs(
     data1: &Map<String, Value>,
     data2: &Map<String, Value>,
     working_context: &WorkingContext,
@@ -231,64 +202,12 @@ pub fn check_for_diffs(
     (key_diff, type_diff, value_diff, array_diff)
 }
 
-pub fn read_from_file(file_path: &str) -> serde_json::Result<SavedContext> {
-    let file =
-        File::open(file_path).unwrap_or_else(|_| panic!("Could not open file {}", file_path));
-    let reader = BufReader::new(file);
-    serde_json::from_reader(reader)
-}
-
-pub fn write_to_file(
-    key_diff_option: Option<Vec<KeyDiff>>,
-    type_diff_option: Option<Vec<TypeDiff>>,
-    value_diff_option: Option<Vec<ValueDiff>>,
-    array_diff_option: Option<Vec<ArrayDiff>>,
+fn render_tables<'a>(
+    diffs: DiffCollection,
     working_context: &WorkingContext,
 ) -> Result<(), DtfError> {
-    let key_diff = key_diff_option.unwrap_or_default();
-    let type_diff = type_diff_option.unwrap_or_default();
-    let value_diff = value_diff_option.unwrap_or_default();
-    let array_diff = array_diff_option.unwrap_or_default();
+    let (key_diff, type_diff, value_diff, array_diff) = diffs;
 
-    if let Some(write_to_file) = working_context.config.write_to_file.clone() {
-        let file = File::create(write_to_file);
-        let config = &working_context.config;
-
-        match serde_json::to_writer(
-            &mut file.unwrap(),
-            &SavedContext::new(
-                key_diff,
-                type_diff,
-                value_diff,
-                array_diff,
-                SavedConfig::new(
-                    config.check_for_key_diffs,
-                    config.check_for_type_diffs,
-                    config.check_for_value_diffs,
-                    config.check_for_array_diffs,
-                    config.file_a.clone().unwrap(),
-                    config.file_b.clone().unwrap(),
-                    config.array_same_order,
-                ),
-            ),
-        ) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(DtfError::IoError(e.into())),
-        }
-    } else {
-        Err(DtfError::DiffError(
-            "File path missing for writing results!".to_owned(),
-        ))
-    }
-}
-
-pub fn render_tables<'a>(
-    key_diff: Option<Vec<KeyDiff>>,
-    type_diff: Option<Vec<TypeDiff>>,
-    value_diff: Option<Vec<ValueDiff>>,
-    array_diff: Option<Vec<ArrayDiff>>,
-    working_context: &WorkingContext,
-) -> Result<(), DtfError> {
     let mut rendered_tables = vec![];
     if working_context.config.render_key_diffs {
         if let Some(diffs) = key_diff.filter(|kd| !kd.is_empty()) {
