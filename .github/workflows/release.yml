@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Set up Rust
-        uses: actions/setup-rust@v1
+        uses: ATiltedTree/setup-rust@v1
         with:
           rust-version: stable
 
@@ -21,7 +21,7 @@ jobs:
         run: cargo install cross
 
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Cross Build
         run: cross build --release --target x86_64-unknown-linux-gnu
