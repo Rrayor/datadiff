@@ -1,6 +1,55 @@
 name: Build
 
 on:
+  release:
+    types:
+      - created
+    branches:
+    - 'release/*'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable]
+
+    steps:
+      - name: Set up Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: ${{ matrix.rust }}
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Install macOS toolchain
+        if: matrix.os == 'macos-latest'
+        run: rustup target add x86_64-apple-darwin
+
+      - name: Build for Linux
+        run: cargo build --release --target x86_64-unknown-linux-gnu
+
+      - name: Build for Windows
+        run: cargo build --release --target x86_64-pc-windows-gnu
+
+      - name: Build for macOS
+        if: matrix.os == 'macos-latest'
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Package artifacts
+        run: |
+          mkdir artifacts
+          cp target/x86_64-unknown-linux-gnu/release/myproject artifacts/myproject-linux
+          cp target/x86_64-pc-windows-gnu/release/myproject.exe artifacts/myproject-windows.exe
+          cp target/x86_64-apple-darwin/release/myproject artifacts/myproject-macos
+
+
+name: Build
+
+on:
   push:
     branches:
       - release/*
