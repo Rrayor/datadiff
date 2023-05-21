@@ -1,12 +1,11 @@
 name: Build
 
 on:
-  push:
+  release:
+    types:
+      - created
     branches:
-      - release/*
-  pull_request:
-    branches:
-      - release/*
+      - 'release/*'
 
 jobs:
   build:
