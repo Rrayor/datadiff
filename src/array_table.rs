@@ -1,4 +1,7 @@
+use std::{collections::HashMap, fmt::format};
+
 use libdtf::diff_types::{ArrayDiff, ArrayDiffDesc};
+use serde_json::json;
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
@@ -32,13 +35,34 @@ impl<'a> TermTable<ArrayDiff> for ArrayTable<'a> {
     }
 
     fn add_rows(&mut self, data: &[ArrayDiff]) {
+        let mut map = HashMap::new();
+
         for ad in data {
-            let value_str = prettyfy_json_str(&ad.value);
-            let (cell_value_1, cell_value_2) = self.get_cell_values(ad, value_str);
+            let key = ad.key.as_str();
+
+            if !map.contains_key(key) {
+                map.insert(key, vec![]);
+            }
+
+            map.get_mut(key).unwrap().push(ad);
+        }
+
+        for (key, values) in map {
+            let display_values1: Vec<String> = values
+                .iter()
+                .filter(|ad| ad.descriptor == ArrayDiffDesc::AHas)
+                .map(|ad| prettyfy_json_str(ad.value.as_str()))
+                .collect();
+            let display_values2: Vec<String> = values
+                .into_iter()
+                .filter(|ad| ad.descriptor == ArrayDiffDesc::BHas)
+                .map(|ad| prettyfy_json_str(ad.value.as_str()))
+                .collect();
+
             self.context.add_row(Row::new(vec![
-                TableCell::new(&ad.key),
-                TableCell::new(cell_value_1),
-                TableCell::new(cell_value_2),
+                TableCell::new(key),
+                TableCell::new(display_values1.join(",\n")),
+                TableCell::new(display_values2.join(",\n")),
             ]));
         }
     }
@@ -53,24 +77,9 @@ impl<'a> ArrayTable<'a> {
         table
     }
 
-    fn get_cell_values(&mut self, ad: &ArrayDiff, value_str: String) -> (String, String) {
-        let cell_value_1 = self.get_cell_value(&ad.descriptor, &value_str).to_owned();
-        let cell_value_2 = self.get_cell_value(&ad.descriptor, &value_str).to_owned();
-        (cell_value_1, cell_value_2)
-    }
-
-    fn get_cell_value(&'a self, descriptor: &'a ArrayDiffDesc, value_str: &'a str) -> &'a str {
-        match descriptor {
-            ArrayDiffDesc::AHas => value_str,
-            ArrayDiffDesc::AMisses => value_str,
-            ArrayDiffDesc::BHas => value_str,
-            ArrayDiffDesc::BMisses => value_str,
-        }
-    }
-
     fn get_file_names(&self) -> (&str, &str) {
         let file_name_a = self.context.working_context().file_a.name.as_str();
-        let file_name_b = self.context.working_context().file_a.name.as_str();
+        let file_name_b = self.context.working_context().file_b.name.as_str();
         (file_name_a, file_name_b)
     }
 
@@ -86,8 +95,8 @@ impl<'a> ArrayTable<'a> {
     fn add_file_names_row(&mut self, file_name_a: String, file_name_b: String) {
         self.context.add_row(Row::new(vec![
             TableCell::new("Key"),
-            TableCell::new(file_name_a),
-            TableCell::new(file_name_b),
+            TableCell::new(format!("Only {} contains", file_name_a)),
+            TableCell::new(format!("Only {} contains", file_name_b)),
         ]));
     }
 }
