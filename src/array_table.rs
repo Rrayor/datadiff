@@ -1,7 +1,6 @@
-use std::{collections::HashMap, fmt::format};
+use std::collections::HashMap;
 
 use libdtf::diff_types::{ArrayDiff, ArrayDiffDesc};
-use serde_json::json;
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
@@ -35,29 +34,13 @@ impl<'a> TermTable<ArrayDiff> for ArrayTable<'a> {
     }
 
     fn add_rows(&mut self, data: &[ArrayDiff]) {
-        let mut map = HashMap::new();
-
-        for ad in data {
-            let key = ad.key.as_str();
-
-            if !map.contains_key(key) {
-                map.insert(key, vec![]);
-            }
-
-            map.get_mut(key).unwrap().push(ad);
-        }
+        let map = ArrayTable::group_by_key(data);
 
         for (key, values) in map {
-            let display_values1: Vec<String> = values
-                .iter()
-                .filter(|ad| ad.descriptor == ArrayDiffDesc::AHas)
-                .map(|ad| prettyfy_json_str(ad.value.as_str()))
-                .collect();
-            let display_values2: Vec<String> = values
-                .into_iter()
-                .filter(|ad| ad.descriptor == ArrayDiffDesc::BHas)
-                .map(|ad| prettyfy_json_str(ad.value.as_str()))
-                .collect();
+            let display_values1: Vec<String> =
+                ArrayTable::get_display_values_by_column(&values, ArrayDiffDesc::AHas);
+            let display_values2 =
+                ArrayTable::get_display_values_by_column(&values, ArrayDiffDesc::BHas);
 
             self.context.add_row(Row::new(vec![
                 TableCell::new(key),
@@ -75,6 +58,33 @@ impl<'a> ArrayTable<'a> {
         };
         table.create_table(data);
         table
+    }
+
+    fn group_by_key(data: &[ArrayDiff]) -> HashMap<&str, Vec<&ArrayDiff>> {
+        let mut map = HashMap::new();
+
+        for ad in data {
+            let key = ad.key.as_str();
+
+            if !map.contains_key(key) {
+                map.insert(key, vec![]);
+            }
+
+            map.get_mut(key).unwrap().push(ad);
+        }
+
+        map
+    }
+
+    fn get_display_values_by_column(
+        values: &[&ArrayDiff],
+        diff_desc: ArrayDiffDesc,
+    ) -> Vec<String> {
+        values
+            .iter()
+            .filter(|ad| ad.descriptor == diff_desc)
+            .map(|ad| prettyfy_json_str(ad.value.as_str()))
+            .collect()
     }
 
     fn get_file_names(&self) -> (&str, &str) {

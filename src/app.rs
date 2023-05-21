@@ -176,28 +176,28 @@ impl App {
         let mut rendered_tables = vec![];
         if self.context.config.render_key_diffs {
             if let Some(diffs) = key_diff.as_ref().filter(|kd| !kd.is_empty()) {
-                let table = KeyTable::new(&diffs, &self.context.lib_working_context);
+                let table = KeyTable::new(diffs, &self.context.lib_working_context);
                 rendered_tables.push(table.render());
             }
         }
 
         if self.context.config.render_type_diffs {
             if let Some(diffs) = type_diff.as_ref().filter(|td| !td.is_empty()) {
-                let table = TypeTable::new(&diffs, &self.context.lib_working_context);
+                let table = TypeTable::new(diffs, &self.context.lib_working_context);
                 rendered_tables.push(table.render());
             }
         }
 
         if self.context.config.render_value_diffs {
             if let Some(diffs) = value_diff.as_ref().filter(|vd| !vd.is_empty()) {
-                let table = ValueTable::new(&diffs, &self.context.lib_working_context);
+                let table = ValueTable::new(diffs, &self.context.lib_working_context);
                 rendered_tables.push(table.render());
             }
         }
 
         if self.context.config.render_array_diffs {
             if let Some(diffs) = array_diff.as_ref().filter(|ad| !ad.is_empty()) {
-                let table = ArrayTable::new(&diffs, &self.context.lib_working_context);
+                let table = ArrayTable::new(diffs, &self.context.lib_working_context);
                 rendered_tables.push(table.render());
             }
         }

@@ -49,7 +49,7 @@ impl<'a> TermTable<TypeDiff> for TypeTable<'a> {
 }
 
 impl<'a> TypeTable<'a> {
-    pub fn new(data: &Vec<TypeDiff>, working_context: &'a LibWorkingContext) -> TypeTable<'a> {
+    pub fn new(data: &[TypeDiff], working_context: &'a LibWorkingContext) -> TypeTable<'a> {
         let mut table = TypeTable {
             context: TableContext::new(working_context),
         };

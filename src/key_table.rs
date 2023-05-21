@@ -37,10 +37,8 @@ impl<'a> TermTable<KeyDiff> for KeyTable<'a> {
         let file_name_a = file_name_a_str.to_owned();
         let file_name_b = file_name_b_str.to_owned();
         for kd in data {
-            let a_has;
-            let b_has;
-            a_has = self.check_has(file_name_a.as_str(), kd);
-            b_has = self.check_has(file_name_b.as_str(), kd);
+            let a_has = self.check_has(file_name_a.as_str(), kd);
+            let b_has = self.check_has(file_name_b.as_str(), kd);
             self.context.add_row(Row::new(vec![
                 TableCell::new(&kd.key),
                 TableCell::new(a_has),
@@ -51,7 +49,7 @@ impl<'a> TermTable<KeyDiff> for KeyTable<'a> {
 }
 
 impl<'a> KeyTable<'a> {
-    pub fn new(data: &Vec<KeyDiff>, working_context: &'a LibWorkingContext) -> KeyTable<'a> {
+    pub fn new(data: &[KeyDiff], working_context: &'a LibWorkingContext) -> KeyTable<'a> {
         let mut table = KeyTable {
             context: TableContext::new(working_context),
         };

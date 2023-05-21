@@ -52,7 +52,7 @@ impl<'a> TermTable<ValueDiff> for ValueTable<'a> {
 }
 
 impl<'a> ValueTable<'a> {
-    pub fn new(data: &Vec<ValueDiff>, working_context: &'a LibWorkingContext) -> ValueTable<'a> {
+    pub fn new(data: &[ValueDiff], working_context: &'a LibWorkingContext) -> ValueTable<'a> {
         let mut table = ValueTable {
             context: TableContext::new(working_context),
         };
