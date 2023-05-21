@@ -45,18 +45,18 @@ $ dtf -r path/to/read-from <OTHER OPTIONS>
 
 ### All Options
 
-| Option | Description                                                               |
-| ------ | ------------------------------------------------------------------------- |
-| `-h`   | Help - Lists all the options and general usage info                       |
-| `-V`   | Get the version of DataDiffer currently in use                            |
-| `-c`   | Check the 2 data files that follow **separated by space**                 |
-| `-r`   | Read saved data from file that follows                                    |
-| `-w`   | Write saved data to file that follows                                     |
-| `-k`   | Check for/list Key differences if any                                     |
-| `-t`   | Check for/list Type differences if any                                    |
-| `-v`   | Check for/list Value differences if any                                   |
-| `-a`   | Check for/list Array differences if any (Has no effect if used with `-o`) |
-| `-o`   | Arrays should be in the same order                                        |
+| Option | Description                                                                              |
+| ------ | ---------------------------------------------------------------------------------------- |
+| `-h`   | Help - Lists all the options and general usage info                                      |
+| `-V`   | Get the version of DataDiffer currently in use                                           |
+| `-c`   | Check the 2 data files that follow **separated by space**                                |
+| `-r`   | Read saved data from file that follows                                                   |
+| `-w`   | Write saved data to file that follows                                                    |
+| `-k`   | Check for/list Key differences if any                                                    |
+| `-t`   | Check for/list Type differences if any                                                   |
+| `-v`   | Check for/list Value differences if any                                                  |
+| `-a`   | Check for/list Array differences if any (Has no effect if used with `-o`)                |
+| `-o`   | Arrays should be in the same order. Works only if the arrays are of the same length too! |
 
 The various options can behave a bit differently if combined in specific ways. We'll go through all the notable phrases and differences next.
 
@@ -76,13 +76,15 @@ Tells you if the fields with the same key in 2 data sets have a different type.
 
 ### Value difference
 
-Tells you if the fields with the same key in 2 data sets have a different value.
+Tells you if the fields with the same key in 2 data sets have a different value. Despite array differences being a separate category, arrays with the same key, that differ in value, will also appear here be it only a serialized version of the whole array and not a detailed listing. This is for consistency and to help you by letting you know, that there are such differences and you may want to use the `-a` or `-o` options.
+![Alt text](readme_images/value_diffs.jpg)
 
 ### Array difference
 
 Only works if arrays are not supposed to be in the same order ( the `-o` option is not present )
 
 Tells you if a value is present in an array that's missing from the array with the same key in the other data set.
+![Alt text](readme_images/array_diffs.jpg)
 
 ## Different behaviours from the same options
 
@@ -106,4 +108,9 @@ All the difference type options (`-k`, `-t`, `-v`, `-a`) represent wich differen
 
 ### Using the `-o` option
 
+Works only if the arrays are of the same length too!
+
 Although the `-a` option is usable in this case too, it will have no real effect on the results as all the differences between arrays will become Value differences. There won't be any Array difference.
+
+If the arrays aren't of the same length they will appear as regular value differences with all of the arrays serialized. Otherwise each value difference will appear in its on row with the index of the array specified.
+![Alt text](readme_images/array_same_order.jpg)

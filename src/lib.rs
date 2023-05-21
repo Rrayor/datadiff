@@ -66,7 +66,7 @@ pub fn run() -> Result<(), DtfError> {
 // Utils
 
 /// Formats JSON strings
-fn prettyfy_json_str(json_str: &str) -> String {
+fn prettify_json_str(json_str: &str) -> String {
     match serde_json::from_str::<Value>(json_str) {
         Ok(json_value) => serde_json::to_string_pretty(&json_value).unwrap_or(json_str.to_owned()),
         Err(_) => json_str.to_owned(),

@@ -8,7 +8,7 @@ use term_table::{
 
 use crate::{
     dtfterminal_types::{LibWorkingContext, TableContext, TermTable},
-    prettyfy_json_str,
+    prettify_json_str,
 };
 
 pub struct ArrayTable<'a> {
@@ -83,7 +83,7 @@ impl<'a> ArrayTable<'a> {
         values
             .iter()
             .filter(|ad| ad.descriptor == diff_desc)
-            .map(|ad| prettyfy_json_str(ad.value.as_str()))
+            .map(|ad| prettify_json_str(ad.value.as_str()))
             .collect()
     }
 

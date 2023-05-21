@@ -6,7 +6,7 @@ use term_table::{
 
 use crate::{
     dtfterminal_types::{LibWorkingContext, TableContext, TermTable},
-    prettyfy_json_str,
+    prettify_json_str,
 };
 
 pub struct ValueTable<'a> {
@@ -44,8 +44,8 @@ impl<'a> TermTable<ValueDiff> for ValueTable<'a> {
         for vd in data {
             self.context.add_row(Row::new(vec![
                 TableCell::new(&vd.key),
-                TableCell::new(&prettyfy_json_str(&vd.value1)),
-                TableCell::new(&prettyfy_json_str(&vd.value2)),
+                TableCell::new(&prettify_json_str(&vd.value1)),
+                TableCell::new(&prettify_json_str(&vd.value2)),
             ]));
         }
     }
