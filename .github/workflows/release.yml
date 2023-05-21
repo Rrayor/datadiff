@@ -1,0 +1,38 @@
+name: Cross Build
+
+on:
+  release:
+    types:
+      - created
+    branches:
+      - 'release/*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Cross Build
+        run: cross build --release --target x86_64-unknown-linux-gnu
+      - run: cross build --release --target x86_64-apple-darwin
+      - run: cross build --release --target x86_64-pc-windows-msvc
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: my-app-artifacts
+          path: |
+            target/x86_64-unknown-linux-gnu/release/my-app
+            target/x86_64-apple-darwin/release/my-app
+            target/x86_64-pc-windows-msvc/release/my-app.exe
