@@ -1,6 +1,6 @@
-[![Rust](https://github.com/Rrayor/datadiff-terminal/actions/workflows/rust.yml/badge.svg)](https://github.com/Rrayor/datadiff-terminal/actions/workflows/rust.yml)
+<h1 align="center">DataDiffer Terminal</h1>
 
-# DataDiffer Terminal
+[![Rust](https://github.com/Rrayor/datadiff-terminal/actions/workflows/rust.yml/badge.svg)](https://github.com/Rrayor/datadiff-terminal/actions/workflows/rust.yml) 
 
 A simple command-line tool that makes your life easier by making differences between data-structures comprehensible.
 
