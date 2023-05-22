@@ -116,3 +116,53 @@ Although the `-a` option is usable in this case too, it will have no real effect
 
 If the arrays aren't of the same length they will appear as regular value differences with all of the arrays serialized. Otherwise each value difference will appear in its on row with the index of the array specified.
 ![Alt text](readme_images/array_same_order.jpg)
+
+# For Contributors
+
+## Thank you for taking interest
+As this is my first open-source and my first Rust project, I welcome every bit of feedback and code contribution. I am trying my best to offer some information and guidelines, to ease all of our work., but I'm sure things will change as I or rather we will learn from the experience 😄 
+
+## The goal
+
+The simple goal: Help users understand differences between datasets easier and faster.
+Example use-cases:
+* A front-end developer wants to update their application to work with the new version of an API. If they can't see the difference in the response at first glance, they can use this tool, to help in finding the changes.
+* A back-end developer makes some changes in the response of an API and they want to give meaningful information about their changes to their front-end counterparts. They can run a check and save the results to a file, which they can share with the front-end developers, who can load the file and see the changes.
+* An application that uses some kind of data stops working, or throws errors from time-to-time. The developers can look for differences between the expected data and the one processed to make debugging easier.
+
+## How to contribute
+There are a few ways you can contribute:
+
+* Download the tool and try it out! Have fun 😉 
+* If you have any issues or ideas, open an issue for it
+* If you know Rust, take a look at the open issues, or if you have your own improvement ideas, open a Pull Request.
+* Don't be afraid to flex your proficiency in Rust or software-development in general, but please provide the rest of us some good descriptions of what you have done, or point us in the direction of some of the sources, you've learnt from. We can all learn from each other.
+* If you find the tool helpful, maybe share it with others, who are in need of something like this 😊
+
+## Quality guidelines
+Here are some pointers for software quality:
+* We should have meaningful unit and integration tests, where possible.
+* If you think, something could be tested, which is not, please don't hesitate to implement the tests yourself.
+* Always test your code.
+* If possible, provide screenshots and/or recordings of your code working in your pull requests!
+
+And some points regarding code quality:
+* We should follow the Rust conventions but not blindly.
+* Clean code also provides some good directions, but that does not mean, it's always right.
+* Make your code simple, and easy on the eyes and mind.
+* Always write Rustdoc for your structs and public methods/functions.
+* If you can't simplify your code enough, write down your reasoning in comments.
+* Don't over-comment.  Good structure and naming is better than good comments every time!
+* If you see a opportunity for improvement, take it, don't leave it alone!
+
+## Be reasonable
+
+Some social guidelines, I will try my best to uphold:
+* Judge the code, but not the people! If you think, someone has to learn more, help them to it!
+* Don't make assumptions, ask questions! Instead of "Don't be lazy!" Maybe try this: "Why did you choose this approach?"
+* No kind of personal offenses are welcome of any nature!
+
+Thank you for helping in maintaining the code and keeping the conversations friendly! 🙇
+
+## Contact
+If you have any questions or concerns, please reach out via email at [rrayor.dev@gmail.com](mailto:rrayor.dev@gmail.com) !
