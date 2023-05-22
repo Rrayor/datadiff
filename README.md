@@ -4,20 +4,43 @@
 
 A simple command-line tool that makes your life easier by making differences between data-structures comprehensible.
 
-## Supported formats
+#### Table of contents
+- [Supported formats](#supported-formats)
+      - [Table of contents](#table-of-contents)
+- [Disclaimer](#disclaimer)
+- [Usage](#usage)
+    - [All Options](#all-options)
+  - [Difference types](#difference-types)
+    - [Key difference](#key-difference)
+    - [Type difference](#type-difference)
+    - [Value difference](#value-difference)
+    - [Array difference](#array-difference)
+  - [Different behaviours from the same options](#different-behaviours-from-the-same-options)
+    - [Checking data sets (`-c` option is used)](#checking-data-sets--c-option-is-used)
+    - [Loading previous check from saved file (`-r` option is used)](#loading-previous-check-from-saved-file--r-option-is-used)
+    - [Using the `-o` option](#using-the--o-option)
+- [For Contributors](#for-contributors)
+  - [Thank you for taking interest](#thank-you-for-taking-interest)
+  - [The goal](#the-goal)
+  - [How to contribute](#how-to-contribute)
+  - [Quality guidelines](#quality-guidelines)
+  - [Be reasonable](#be-reasonable)
+  - [Contact](#contact)
+
+# Supported formats
 
 | Format | Extension | Supported?                                |
 | ------ | --------- | ----------------------------------------- |
 | JSON   | .json     | <span style="color:green">Yes</span>      |
 | YAML   | .yml      | <span style="color:yellow">Planned</span> |
 
-## Disclaimer
+# Disclaimer
 
 I am a full-stack developer in Java and Typescript and this is my first Rust project as well as the first open-source one. Every feedback or contribution is welcome!
 
 The idea of this tool came to me, as I was trying to figure out, what changed in the response JSON of an API, and I thought, a tool like this could be helpful. I hope it helps someone else too.
 
-## Usage
+# Usage
 
 The general structure of a command is as-follows:
 
