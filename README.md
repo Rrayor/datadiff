@@ -4,6 +4,9 @@
 
 A simple command-line tool that makes your life easier by making differences between data-structures comprehensible.
 
+Built on [libdtf](https://github.com/Rrayor/libdtf)
+
+#### Table of contents
 - [Supported formats](#supported-formats)
 - [Disclaimer](#disclaimer)
 - [Installation](#installation)
