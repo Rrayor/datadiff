@@ -4,10 +4,14 @@
 
 A simple command-line tool that makes your life easier by making differences between data-structures comprehensible.
 
-#### Table of contents
 - [Supported formats](#supported-formats)
-      - [Table of contents](#table-of-contents)
 - [Disclaimer](#disclaimer)
+- [Installation](#installation)
+  - [Build from source](#build-from-source)
+  - [Download built binary](#download-built-binary)
+  - [Bonus: How to set the `PATH` variable](#bonus-how-to-set-the-path-variable)
+    - [Windows](#windows)
+    - [Linux](#linux)
 - [Usage](#usage)
     - [All Options](#all-options)
   - [Difference types](#difference-types)
@@ -23,9 +27,11 @@ A simple command-line tool that makes your life easier by making differences bet
   - [Thank you for taking interest](#thank-you-for-taking-interest)
   - [The goal](#the-goal)
   - [How to contribute](#how-to-contribute)
+  - [Technical guidelines](#technical-guidelines)
   - [Quality guidelines](#quality-guidelines)
   - [Be reasonable](#be-reasonable)
   - [Contact](#contact)
+
 
 # Supported formats
 
@@ -39,6 +45,46 @@ A simple command-line tool that makes your life easier by making differences bet
 I am a full-stack developer in Java and Typescript and this is my first Rust project as well as the first open-source one. Every feedback or contribution is welcome!
 
 The idea of this tool came to me, as I was trying to figure out, what changed in the response JSON of an API, and I thought, a tool like this could be helpful. I hope it helps someone else too.
+
+Throughout the development of the first iteration, I used ChatGPT extensively. The code overall is not generated, but I took hints and asked for improvements which either worked and got implemented or not. It was a fun pair-programming experience and I advise anyone to try it out. Because the tool is open source and currently doesn't contain sensitive information, the code can be passed into ChatGPT without significant risk.
+
+# Installation
+Currently there is no classical installation. The app is distributed as portable binaries. There are 2 main ways to get the app working on your system. They overlap after a while, but I put the overlapping parts in both instruction sets.
+
+**IMPORTANT:** Unfortunately I didn't have the opportunity to test on every platform, especially MacOS 😒 I tested on Windows 11 and Fedora 38.
+
+## Build from source
+You can clone the repo and build the app for yourself. This requires some experience with building applications however, but the process shouldn't be too hard.
+
+1. Install Rust and Cargo. We won't cover this in detail, but you can generally follow the steps here: [Install Rust](https://www.rust-lang.org/tools/install)
+2. Clone the repo and checkout the branch you'd like to build.
+3. Inside the root directory of the project run `cargo build` and find the built binary in the newly generated `target` folder.
+4. Copy the binary to wherever you like, and name it however you like. You'll be using the name to run the program from the terminal so the name would better be short. I like `dtf` or `dtft`.
+5. Add the folder, where the binary is located to the `PATH` environment variable of your system.
+6. Open a new terminal and run the program with the name, you gave it. It should work now.
+
+## Download built binary
+You can download the pre-built binaries from the Github releases page.
+
+1. Download the package applicable for your system and extract it to wherever you like. Also name it however you like. You'll be using the name to run the program from the terminal so the name would better be short. I like `dtf` or `dtft`.
+2. Add the folder, where the binary is located to the `PATH` environment variable of your system.
+3. Open a new terminal and run the program with the name, you gave it. It should work now.
+
+## Bonus: How to set the `PATH` variable
+
+### Windows
+1. Press the `Windows key` and start typing `environment variables`. It should offer `Edit the system environment variables`. Open it.
+2. Click the `Environment Variables` button around the bottom of the window.
+3. In the upper `User variables for {USERNAME}` part search for `Path` and select it.
+4. Click `Edit` a new window should pop up.
+  * If there is one, click the `New` button and type or paste in the path to the folder the binary is located in.
+  * If there is only a text field, type or paste in the path to the folder the binary is located in at the end. Be aware, that entries are separated by `;`.
+
+### Linux
+`{Path/to/binary}` represents the path to the folder, your binary is located in.
+1. Open a terminal.
+2. Run `export PATH = export PATH={Path/to/binary}:$PATH`
+3. If you run `echo $PATH`, it should contain the new path.
 
 # Usage
 
@@ -161,6 +207,14 @@ There are a few ways you can contribute:
 * If you know Rust, take a look at the open issues, or if you have your own improvement ideas, open a Pull Request.
 * Don't be afraid to flex your proficiency in Rust or software-development in general, but please provide the rest of us some good descriptions of what you have done, or point us in the direction of some of the sources, you've learnt from. We can all learn from each other.
 * If you find the tool helpful, maybe share it with others, who are in need of something like this 😊
+
+## Technical guidelines
+Please try to follow some technicalities. If there is an issue, the branch is made for, it should contain its identifier and the branch name should hint at what the code should solve.
+
+* Name your branches following these patterns:
+  * 'feature/`{identifier-of-issue}`*': For changes that add new functionality to the software
+  * 'bugfix/`{identifier-of-issue}`*': For changes that fix or improve existing functionality
+* Commit messages should start with `#{identifier-of-issue}` if they are part of solving a Github issue.
 
 ## Quality guidelines
 Here are some pointers for software quality:
