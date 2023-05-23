@@ -9,6 +9,7 @@ Built on [libdtf](https://github.com/Rrayor/libdtf)
 #### Table of contents
 - [Supported formats](#supported-formats)
 - [Disclaimer](#disclaimer)
+- [Privacy Note](#privacy-note)
 - [Installation](#installation)
   - [Build from source](#build-from-source)
   - [Download built binary](#download-built-binary)
@@ -50,6 +51,21 @@ I am a full-stack developer in Java and Typescript and this is my first Rust pro
 The idea of this tool came to me, as I was trying to figure out, what changed in the response JSON of an API, and I thought, a tool like this could be helpful. I hope it helps someone else too.
 
 Throughout the development of the first iteration, I used ChatGPT extensively. The code overall is not generated, but I took hints and asked for improvements which either worked and got implemented or not. It was a fun pair-programming experience and I advise anyone to try it out. Because the tool is open source and currently doesn't contain sensitive information, the code can be passed into ChatGPT without significant risk.
+
+# Privacy Note
+
+The code in this repo doesn't send data anywhere. It stores results in a file you specify if you want to and reads the files you specify.
+
+However there are a couple of dependencies used, which we don't have control over, but to the best of my knowledge they don't collect data either. These are:
+
+* [libdtf](https://github.com/Rrayor/libdtf) - This is a sister project and doesn't send data either, although it has it's own dependencies, which should be safe too at this point:
+  * [serde_json](https://docs.rs/serde_json/latest/serde_json/)
+  * [serde](https://serde.rs/)
+* [term_table](https://docs.rs/term-table/latest/term_table/)
+* [colored](https://docs.rs/colored/latest/colored/)
+* [clap](https://docs.rs/clap/latest/clap/)
+* [serde_json](https://docs.rs/serde_json/latest/serde_json/)
+* [serde](https://serde.rs/)
 
 # Installation
 Currently there is no classical installation. The app is distributed as portable binaries. There are 2 main ways to get the app working on your system. They overlap after a while, but I put the overlapping parts in both instruction sets.
