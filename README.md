@@ -261,4 +261,4 @@ Some social guidelines, I will try my best to uphold:
 Thank you for helping in maintaining the code and keeping the conversations friendly! 🙇
 
 ## Contact
-If you have any questions or concerns, please reach out via email at [rrayor.dev@gmail.com](mailto:rrayor.dev@gmail.com) !
+If you have any questions or concerns, please reach out via email at [rrayor.dev@gmail.com](mailto:rrayor.dev@gmail.com) or right here in the discussions!
