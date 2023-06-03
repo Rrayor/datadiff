@@ -34,6 +34,12 @@
   "email_addresses": [
     "sarah.smith@example.com"
   ],
+  "tasks_done": [
+    "a",
+    "b",
+    "b",
+    "b"
+  ],
   "employment": {
     "employer": "ABC Corporation",
     "position": "Manager",
@@ -59,4 +65,3 @@
     }
   }
 }
-

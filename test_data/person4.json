@@ -19,6 +19,11 @@
       "number": "555-5678"
     }
   ],
+  "tasks_done": [
+    "a",
+    "a",
+    "b"
+  ],
   "employment": {
     "position": "Manager",
     "start_date": "2016-01-01",
@@ -52,4 +57,3 @@
   },
   "age": 40
 }
-
