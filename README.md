@@ -166,7 +166,7 @@ Tells you if the fields with the same key in 2 data sets have a different type.
 
 ### Value difference
 
-Tells you if the fields with the same key in 2 data sets have a different value. Despite array differences being a separate category, arrays with the same key, that differ in value, will also appear here be it only a serialized version of the whole array and not a detailed listing. This is for consistency and to help you by letting you know, that there are such differences and you may want to use the `-a` or `-o` options.
+Tells you if the fields with the same key in 2 data sets have a different value. Array differences being a separate category, arrays with the same key, that differ in value, will appear here but it will only tell you, that "Array differences are present" and won't give you a detailed listing. This is for helping you by letting you know, that there are such differences and you may want to use the `-a` or `-o` options.
 ![Alt text](readme_images/value_diffs.jpg)
 
 ### Array difference
