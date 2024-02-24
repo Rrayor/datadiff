@@ -4,6 +4,8 @@ use dtfterminal_types::DtfError;
 use serde_json::Value;
 
 mod app;
+mod json_app;
+mod yaml_app;
 mod array_table;
 pub mod dtfterminal_types;
 mod file_handler;

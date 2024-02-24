@@ -1,0 +1,40 @@
+name: John Doe
+email_addresses:
+  - jdoe@example.com
+  - john.doe@example.com
+phone_numbers:
+  - type: work
+    number: "555-1234"
+    ext: "5678"
+    notes:
+      description: Call between 9am and 5pm
+      follow_up: Call back tomorrow
+  - type: home
+    number: "555-5678"
+tasks_done:
+  - a
+  - a
+  - b
+employment:
+  position: Manager
+  start_date: "2016-01-01"
+  department:
+    name: Marketing
+    manager: Jane Smith
+    members:
+      - name: Bob Johnson
+        title: Sales Rep
+        email: bob.johnson@example.com
+      - name: Sara Lee
+        title: Marketing Coordinator
+        phone: "555-2468"
+        email: slee@example.com
+address:
+  state: CA
+  zip: "90210"
+  coordinates:
+    longitude: -118.4124
+    latitude: 34.0900
+  city: Beverly Hills
+  street: "123 Maple St"
+age: 40

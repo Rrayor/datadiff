@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use libdtf::diff_types::{ArrayDiff, ArrayDiffDesc};
+use libdtf::core::diff_types::{ArrayDiff, ArrayDiffDesc};
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},

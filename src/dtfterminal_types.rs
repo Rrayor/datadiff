@@ -1,12 +1,11 @@
 use std::{error::Error, fmt};
 
-use libdtf::diff_types::{ArrayDiff, Diff, KeyDiff, TypeDiff, ValueDiff};
+use libdtf::core::diff_types::{ArrayDiff, Diff, KeyDiff, TypeDiff, ValueDiff};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 use term_table::{row::Row, Table, TableStyle};
 
-pub type LibConfig = libdtf::diff_types::Config;
-pub type LibWorkingContext = libdtf::diff_types::WorkingContext;
+pub type LibConfig = libdtf::core::diff_types::Config;
+pub type LibWorkingContext = libdtf::core::diff_types::WorkingContext;
 
 /// Stores the data required for rendering a table of the differences
 pub struct TableContext<'a> {
@@ -56,8 +55,8 @@ pub trait TermTable<T: Diff> {
 
 /// The data structure arguments are needed to be stored in
 pub type ParsedArgs = (
-    Option<Map<String, Value>>,
-    Option<Map<String, Value>>,
+    Option<String>,
+    Option<String>,
     Config,
 );
 
