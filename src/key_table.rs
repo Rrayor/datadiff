@@ -1,5 +1,5 @@
 use colored::{Color, ColoredString, Colorize};
-use libdtf::diff_types::KeyDiff;
+use libdtf::core::diff_types::KeyDiff;
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},

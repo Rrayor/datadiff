@@ -1,0 +1,17 @@
+name: Jane Doe
+email_addresses:
+  - jane.doe@example.com
+employment:
+  employer: Widget Corp
+  start_date: "2015-05-01"
+phone_numbers:
+  - type: cell
+    number: "555-4321"
+address:
+  state: NY
+  city: Sometown
+  zip: "54321"
+  street: "456 Elm St"
+hobbies:
+  - reading
+  - hiking

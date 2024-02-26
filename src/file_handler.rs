@@ -1,6 +1,6 @@
 use std::{error::Error, fs::File, io::BufReader};
 
-use libdtf::{diff_types::WorkingFile, read_json_file};
+use libdtf::{core::diff_types::WorkingFile, json::read_json_file, yaml::read_yaml_file};
 
 use crate::dtfterminal_types::{
     Config, ConfigBuilder, DiffCollection, DtfError, LibConfig, LibWorkingContext, SavedConfig,
@@ -24,6 +24,12 @@ impl FileHandler {
         file_path: &str,
     ) -> Result<serde_json::Map<String, serde_json::Value>, serde_json::Error> {
         read_json_file(file_path)
+    }
+
+    pub fn read_yaml_file(
+        file_path: &str,
+    ) -> Result<serde_yaml::Mapping, serde_yaml::Error> {
+        read_yaml_file(file_path)
     }
 
     pub fn write_to_file(&self, diffs: DiffCollection) -> Result<(), DtfError> {

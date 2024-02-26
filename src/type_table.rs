@@ -1,4 +1,4 @@
-use libdtf::diff_types::TypeDiff;
+use libdtf::core::diff_types::TypeDiff;
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},

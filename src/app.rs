@@ -1,31 +1,22 @@
 use std::error::Error;
 
 use crate::{
-    array_table::ArrayTable,
-    dtfterminal_types::{
+    array_table::ArrayTable, dtfterminal_types::{
         Config, ConfigBuilder, DiffCollection, DtfError, LibConfig, LibWorkingContext, ParsedArgs,
         TermTable, WorkingContext,
-    },
-    file_handler::FileHandler,
-    key_table::KeyTable,
-    type_table::TypeTable,
-    value_table::ValueTable,
-    Arguments,
+    }, file_handler::FileHandler, json_app::JsonApp, yaml_app::YamlApp, key_table::KeyTable, type_table::TypeTable, value_table::ValueTable, Arguments
 };
 
 use ::clap::Parser;
-use libdtf::diff_types::{
-    ArrayDiff, Checker, CheckingData, KeyDiff, TypeDiff, ValueDiff, WorkingFile,
-};
-use serde_json::{Map, Value};
+use libdtf::core::diff_types::WorkingFile;
 
 /// Responsible for the main functionality of the app. Makes sure everything runs in the correct order.
 pub struct App {
-    data1: Option<Map<String, Value>>,
-    data2: Option<Map<String, Value>>,
     diffs: DiffCollection,
     context: WorkingContext,
     file_handler: FileHandler,
+    json_app: Option<JsonApp>,
+    yaml_app: Option<YamlApp>,
 }
 
 impl App {
@@ -33,7 +24,7 @@ impl App {
     /// 1. Parses the command line arguments
     /// 2. Checks for differences and stores them
     pub fn new() -> App {
-        let (data1, data2, config) = App::parse_args();
+        let (path1, path2, config) = App::parse_args();
         let mut file_handler = FileHandler::new(config.clone(), None);
         let (diffs, context) = if config.read_from_file.is_empty() {
             (
@@ -45,13 +36,30 @@ impl App {
                 .load_saved_results()
                 .expect("Could not load saved file!")
         };
+
+        let json_app = match (&path1, &path2) {
+            (Some(p1), Some(p2)) if p1.ends_with(".json") && p2.ends_with(".json") => Some(JsonApp::new(p1.clone(), p2.clone(), context.clone())),
+            _ => None,
+        };
+
+        let yaml_app = match (&path1, &path2) {
+            (Some(p1), Some(p2)) if p1.ends_with(".yaml") && p2.ends_with(".yaml") => Some(YamlApp::new(p1.clone(), p2.clone(), context.clone())),
+            (Some(p1), Some(p2)) if p1.ends_with(".yml") && p2.ends_with(".yml") => Some(YamlApp::new(p1.clone(), p2.clone(), context.clone())),
+            _ => None,
+        };
+        
+        if json_app.is_none() && yaml_app.is_none() {
+            panic!("No valid files to check!");
+        }
+        
         let mut app = App {
             diffs,
             context,
             file_handler,
-            data1,
-            data2,
+            json_app,
+            yaml_app
         };
+
 
         app.collect_data(&config);
 
@@ -75,12 +83,8 @@ impl App {
     fn parse_args() -> ParsedArgs {
         let args = Arguments::parse();
 
-        let (data1, data2) = if args.read_from_file.is_empty() {
-            let data1 = FileHandler::read_json_file(&args.check_files[0])
-                .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.check_files[0]));
-            let data2 = FileHandler::read_json_file(&args.check_files[1])
-                .unwrap_or_else(|_| panic!("Couldn't read file: {}", &args.check_files[1]));
-            (Some(data1), Some(data2))
+        let (path1, path2) = if args.read_from_file.is_empty() {
+            (Some(args.check_files[0].clone()), Some(args.check_files[1].clone()))
         } else {
             (None, None)
         };
@@ -96,12 +100,12 @@ impl App {
             .render_array_diffs(args.array_diffs)
             .read_from_file(args.read_from_file)
             .write_to_file(args.write_to_file)
-            .file_a(data1.clone().map(|_| args.check_files[0].clone()))
-            .file_b(data2.clone().map(|_| args.check_files[1].clone()))
+            .file_a(path1.clone())
+            .file_b(path2.clone())
             .array_same_order(args.array_same_order)
             .build();
 
-        (data1, data2, config)
+        (path1, path2, config)
     }
 
     fn collect_data(&mut self, user_config: &Config) {
@@ -117,57 +121,21 @@ impl App {
     }
 
     fn perform_new_check(&self) -> Result<DiffCollection, Box<dyn Error>> {
-        let diffs = self.check_for_diffs(
-            self.data1
-                .as_ref()
-                .ok_or("Contents of first file are missing")?,
-            self.data2
-                .as_ref()
-                .ok_or("Contents of second file are missing")?,
-        );
-
-        Ok(diffs)
+        self.check_for_diffs()
     }
 
     fn check_for_diffs(
         &self,
-        data1: &Map<String, Value>,
-        data2: &Map<String, Value>,
-    ) -> DiffCollection {
-        let key_diff = if self.context.config.check_for_key_diffs {
-            let mut checking_data: CheckingData<KeyDiff> =
-                CheckingData::new("", data1, data2, &self.context.lib_working_context);
-            checking_data.check();
-            Some(checking_data.diffs()).cloned()
+    ) -> Result<DiffCollection, Box<dyn Error>> {
+        if let Some(json_app) = &self.json_app {
+            Ok(json_app.perform_new_check())
+        } else if let Some(yaml_app) = &self.yaml_app {
+            Ok(yaml_app.perform_new_check())
         } else {
-            None
-        };
-        let type_diff = if self.context.config.check_for_type_diffs {
-            let mut checking_data: CheckingData<TypeDiff> =
-                CheckingData::new("", data1, data2, &self.context.lib_working_context);
-            checking_data.check();
-            Some(checking_data.diffs()).cloned()
-        } else {
-            None
-        };
-        let value_diff = if self.context.config.check_for_value_diffs {
-            let mut checking_data: CheckingData<ValueDiff> =
-                CheckingData::new("", data1, data2, &self.context.lib_working_context);
-            checking_data.check();
-            Some(checking_data.diffs()).cloned()
-        } else {
-            None
-        };
-        let array_diff = if self.context.config.check_for_array_diffs {
-            let mut checking_data: CheckingData<ArrayDiff> =
-                CheckingData::new("", data1, data2, &self.context.lib_working_context);
-            checking_data.check();
-            Some(checking_data.diffs()).cloned()
-        } else {
-            None
-        };
-
-        (key_diff, type_diff, value_diff, array_diff)
+            Err(Box::new(DtfError::DiffError(
+                "No file to check".to_string(),
+            )))
+        }
     }
 
     fn render_tables(&self) -> Result<(), DtfError> {
