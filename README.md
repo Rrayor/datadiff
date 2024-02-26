@@ -42,7 +42,7 @@ Built on [libdtf](https://github.com/Rrayor/libdtf)
 | Format | Extension | Supported?                                |
 | ------ | --------- | ----------------------------------------- |
 | JSON   | .json     | <span style="color:green">Yes</span>      |
-| YAML   | .yml      | <span style="color:yellow">Planned</span> |
+| YAML   | .yml      | <span style="color:yellow">Included on main branch (BETA release shortly)</span> |
 
 # Disclaimer
 
