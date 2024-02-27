@@ -5,8 +5,7 @@ use term_table::{
 };
 
 use crate::{
-    dtfterminal_types::{LibWorkingContext, TableContext, TermTable},
-    prettify_json_str,
+    dtfterminal_types::{LibWorkingContext, TableContext, TermTable}, prettify_data
 };
 
 pub struct ValueTable<'a> {
@@ -44,8 +43,8 @@ impl<'a> TermTable<ValueDiff> for ValueTable<'a> {
         for vd in data {
             self.context.add_row(Row::new(vec![
                 TableCell::new(&vd.key),
-                TableCell::new(&prettify_json_str(&vd.value1)),
-                TableCell::new(&prettify_json_str(&vd.value2)),
+                TableCell::new(prettify_data(self.get_file_names(), &vd.value1)),
+                TableCell::new(prettify_data(self.get_file_names(), &vd.value2)),
             ]));
         }
     }
@@ -60,7 +59,7 @@ impl<'a> ValueTable<'a> {
         table
     }
 
-    fn get_file_names(&mut self) -> (&str, &str) {
+    fn get_file_names(&self) -> (&str, &str) {
         let file_name_a = self.context.working_context().file_a.name.as_str();
         let file_name_b = self.context.working_context().file_b.name.as_str();
         (file_name_a, file_name_b)
