@@ -1,10 +1,18 @@
 use std::error::Error;
 
 use crate::{
-    array_table::ArrayTable, dtfterminal_types::{
+    array_table::ArrayTable,
+    dtfterminal_types::{
         Config, ConfigBuilder, DiffCollection, DtfError, LibConfig, LibWorkingContext, ParsedArgs,
         TermTable, WorkingContext,
-    }, file_handler::FileHandler, json_app::JsonApp, yaml_app::YamlApp, key_table::KeyTable, type_table::TypeTable, value_table::ValueTable, Arguments
+    },
+    file_handler::FileHandler,
+    json_app::JsonApp,
+    key_table::KeyTable,
+    type_table::TypeTable,
+    value_table::ValueTable,
+    yaml_app::YamlApp,
+    Arguments,
 };
 
 use ::clap::Parser;
@@ -38,28 +46,30 @@ impl App {
         };
 
         let json_app = match (&path1, &path2) {
-            (Some(p1), Some(p2)) if p1.ends_with(".json") && p2.ends_with(".json") => Some(JsonApp::new(p1.clone(), p2.clone(), context.clone())),
+            (Some(p1), Some(p2)) if p1.ends_with(".json") && p2.ends_with(".json") => {
+                Some(JsonApp::new(p1.clone(), p2.clone(), context.clone()))
+            }
             _ => None,
         };
 
         let yaml_app = match (&path1, &path2) {
-            (Some(p1), Some(p2)) if p1.ends_with(".yaml") && p2.ends_with(".yaml") => Some(YamlApp::new(p1.clone(), p2.clone(), context.clone())),
-            (Some(p1), Some(p2)) if p1.ends_with(".yml") && p2.ends_with(".yml") => Some(YamlApp::new(p1.clone(), p2.clone(), context.clone())),
+            (Some(p1), Some(p2)) if Self::is_yaml_file(p1) && Self::is_yaml_file(p2) => {
+                Some(YamlApp::new(p1.clone(), p2.clone(), context.clone()))
+            }
             _ => None,
         };
-        
+
         if json_app.is_none() && yaml_app.is_none() {
             panic!("No valid files to check!");
         }
-        
+
         let mut app = App {
             diffs,
             context,
             file_handler,
             json_app,
-            yaml_app
+            yaml_app,
         };
-
 
         app.collect_data(&config);
 
@@ -84,7 +94,10 @@ impl App {
         let args = Arguments::parse();
 
         let (path1, path2) = if args.read_from_file.is_empty() {
-            (Some(args.check_files[0].clone()), Some(args.check_files[1].clone()))
+            (
+                Some(args.check_files[0].clone()),
+                Some(args.check_files[1].clone()),
+            )
         } else {
             (None, None)
         };
@@ -124,9 +137,7 @@ impl App {
         self.check_for_diffs()
     }
 
-    fn check_for_diffs(
-        &self,
-    ) -> Result<DiffCollection, Box<dyn Error>> {
+    fn check_for_diffs(&self) -> Result<DiffCollection, Box<dyn Error>> {
         if let Some(json_app) = &self.json_app {
             Ok(json_app.perform_new_check())
         } else if let Some(yaml_app) = &self.yaml_app {
@@ -170,6 +181,11 @@ impl App {
             }
         }
 
+        if rendered_tables.is_empty() {
+            println!("The data is identical!");
+            return Ok(());
+        }
+
         for table in rendered_tables {
             println!("{}", table);
         }
@@ -185,5 +201,9 @@ impl App {
             LibWorkingContext::new(file_a, file_b, LibConfig::new(config.array_same_order));
 
         WorkingContext::new(lib_working_context, config.clone())
+    }
+
+    fn is_yaml_file(path: &str) -> bool {
+        path.ends_with(".yaml") || path.ends_with(".yml")
     }
 }
