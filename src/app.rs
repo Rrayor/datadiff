@@ -1,18 +1,10 @@
 use std::error::Error;
 
 use crate::{
-    array_table::ArrayTable,
-    dtfterminal_types::{
+    array_table::ArrayTable, dtfterminal_types::{
         Config, ConfigBuilder, DiffCollection, DtfError, LibConfig, LibWorkingContext, ParsedArgs,
         TermTable, WorkingContext,
-    },
-    file_handler::FileHandler,
-    json_app::JsonApp,
-    key_table::KeyTable,
-    type_table::TypeTable,
-    value_table::ValueTable,
-    yaml_app::YamlApp,
-    Arguments,
+    }, file_handler::FileHandler, is_yaml_file, json_app::JsonApp, key_table::KeyTable, type_table::TypeTable, value_table::ValueTable, yaml_app::YamlApp, Arguments
 };
 
 use ::clap::Parser;
@@ -53,7 +45,7 @@ impl App {
         };
 
         let yaml_app = match (&path1, &path2) {
-            (Some(p1), Some(p2)) if Self::is_yaml_file(p1) && Self::is_yaml_file(p2) => {
+            (Some(p1), Some(p2)) if is_yaml_file(p1) && is_yaml_file(p2) => {
                 Some(YamlApp::new(p1.clone(), p2.clone(), context.clone()))
             }
             _ => None,
@@ -201,9 +193,5 @@ impl App {
             LibWorkingContext::new(file_a, file_b, LibConfig::new(config.array_same_order));
 
         WorkingContext::new(lib_working_context, config.clone())
-    }
-
-    fn is_yaml_file(path: &str) -> bool {
-        path.ends_with(".yaml") || path.ends_with(".yml")
     }
 }

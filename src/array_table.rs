@@ -7,8 +7,7 @@ use term_table::{
 };
 
 use crate::{
-    dtfterminal_types::{LibWorkingContext, TableContext, TermTable},
-    prettify_json_str,
+    dtfterminal_types::{LibWorkingContext, TableContext, TermTable}, is_yaml_file, prettify_data
 };
 
 pub struct ArrayTable<'a> {
@@ -35,17 +34,22 @@ impl<'a> TermTable<ArrayDiff> for ArrayTable<'a> {
 
     fn add_rows(&mut self, data: &[ArrayDiff]) {
         let map = ArrayTable::group_by_key(data);
+        let join_str = if is_yaml_file(self.get_file_names().0) {
+            ""
+        } else {
+            ",\n"
+        };
 
         for (key, values) in map {
             let display_values1: Vec<String> =
-                ArrayTable::get_display_values_by_column(&values, ArrayDiffDesc::AHas);
+                self.get_display_values_by_column(&values, ArrayDiffDesc::AHas);
             let display_values2 =
-                ArrayTable::get_display_values_by_column(&values, ArrayDiffDesc::BHas);
+                self.get_display_values_by_column(&values, ArrayDiffDesc::BHas);
 
             self.context.add_row(Row::new(vec![
                 TableCell::new(key),
-                TableCell::new(display_values1.join(",\n")),
-                TableCell::new(display_values2.join(",\n")),
+                TableCell::new(display_values1.join(join_str)),
+                TableCell::new(display_values2.join(join_str)),
             ]));
         }
     }
@@ -77,13 +81,15 @@ impl<'a> ArrayTable<'a> {
     }
 
     fn get_display_values_by_column(
+        &self,
         values: &[&ArrayDiff],
         diff_desc: ArrayDiffDesc,
     ) -> Vec<String> {
+        let file_names = self.get_file_names();
         values
             .iter()
             .filter(|ad| ad.descriptor == diff_desc)
-            .map(|ad| prettify_json_str(ad.value.as_str()))
+            .map(|ad| prettify_data(file_names, ad.value.as_str()))
             .collect()
     }
 
