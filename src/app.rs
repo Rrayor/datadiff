@@ -9,6 +9,7 @@ use crate::{
 
 use ::clap::Parser;
 use libdtf::core::diff_types::WorkingFile;
+use spinners::Spinner;
 
 /// Responsible for the main functionality of the app. Makes sure everything runs in the correct order.
 pub struct App {
@@ -70,6 +71,7 @@ impl App {
 
     /// Handles the output into file or to the terminal
     pub fn execute(&self) -> Result<(), DtfError> {
+        let mut spinner = Spinner::new(spinners::Spinners::Monkey, "Checking for differences...".into());
         if self.context.config.write_to_file.is_some() {
             self.file_handler
                 .write_to_file(self.diffs.clone())
@@ -79,6 +81,7 @@ impl App {
                 .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
         }
 
+        spinner.stop();
         Ok(())
     }
 
