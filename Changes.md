@@ -1,3 +1,13 @@
+## 0.6.0 - 2024. 02. 28.
+**➕ Dependencies**
+* Updated libdtf to 0.6.1
+* Added Spinner
+
+**✨ New Features**
+* 🎉 YAML support
+* ⏰ Loading indicator
+* ✔️ Message when data is identical
+
 ## 0.5.1 - 2023-06-03
 **Dependencies**
 * Updated libdtf to 0.5.1
