@@ -71,7 +71,7 @@ impl App {
 
     /// Handles the output into file or to the terminal
     pub fn execute(&self) -> Result<(), DtfError> {
-        let mut spinner = Spinner::new(spinners::Spinners::Monkey, "Checking for differences...".into());
+        let mut spinner = Spinner::new(spinners::Spinners::Monkey, "Checking for differences...\n".into());
         if self.context.config.write_to_file.is_some() {
             self.file_handler
                 .write_to_file(self.diffs.clone())
