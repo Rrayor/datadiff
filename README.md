@@ -42,7 +42,9 @@ Built on [libdtf](https://github.com/Rrayor/libdtf)
 | Format | Extension | Supported?                                |
 | ------ | --------- | ----------------------------------------- |
 | JSON   | .json     | <span style="color:green">Yes</span>      |
-| YAML   | .yml, .yaml      | <span style="color:yellow">Included on main branch (BETA release shortly)</span> |
+| YAML   | .yml, .yaml      | <span style="color:green">Yes</span> |
+
+**Note:** Cross comparison not currently available. You can compare JSON with JSON and YAML with YAML, not JSON with YAML!
 
 # Disclaimer
 
@@ -64,6 +66,7 @@ However there are a couple of dependencies used, which we don't have control ove
 * [term_table](https://docs.rs/term-table/latest/term_table/)
 * [colored](https://docs.rs/colored/latest/colored/)
 * [clap](https://docs.rs/clap/latest/clap/)
+* [Spinner](https://docs.rs/spinners/4.1.1/spinners/)
 * [serde_json](https://docs.rs/serde_json/latest/serde_json/)
 * [serde](https://serde.rs/)
 
