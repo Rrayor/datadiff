@@ -1,4 +1,6 @@
-use std::error::Error;
+use std::{error::Error, fs::File};
+use std::fmt::Write as FmtWrite;
+use std::io::Write as IoWrite;
 
 use crate::{
     array_table::ArrayTable, dtfterminal_types::{
@@ -8,6 +10,7 @@ use crate::{
 };
 
 use ::clap::Parser;
+use html_builder::{Buffer, Html5};
 use libdtf::core::diff_types::WorkingFile;
 use spinners::Spinner;
 
@@ -193,7 +196,59 @@ impl App {
     }
 
     fn render_html(&self) -> Result<(), DtfError> {
-        println!("render_html not implemented yet!");
+        let mut buf = Buffer::new();
+        buf.doctype();
+        let mut html = buf.html().attr("lang='en'");
+        let mut head = html.head();
+        writeln!(head.title(),
+             "Datadiff Comparing {} and {}",
+              self.context.config.file_a.clone().unwrap_or_else(|| { "Unknown".to_owned() }), 
+              self.context.config.file_b.clone().unwrap_or_else(|| { "Unknown".to_owned() }))
+              .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+        head.meta().attr("charset='utf-8'");
+        let mut body = html.body();
+        writeln!(body.h1(), "Data Differences")
+            .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+        writeln!(body.p(), "The following differences were found:")
+            .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+
+        if self.context.config.render_key_diffs {
+            if let Some(diffs) = self.diffs.0.as_ref().filter(|kd| !kd.is_empty()) {
+                writeln!(body.h2(), "Key Differences")
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                let mut table = body.table();
+                let mut tr1 = table.tr();
+                writeln!(tr1.th(), "Key").map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                writeln!(tr1.th(), "{}", self.context.config.file_a.clone().unwrap_or_else(|| { "Unknown".to_owned() }))
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                writeln!(tr1.th(), "{}", self.context.config.file_b.clone().unwrap_or_else(|| { "Unknown".to_owned() }))
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+
+                for diff in diffs {
+                    let key = diff.key.clone();
+                    let val1 = diff.has.eq(self.context.lib_working_context.file_a.name.as_str());
+                    let val2 = diff.has.eq(self.context.lib_working_context.file_b.name.as_str());
+
+                    let mut tr = table.tr();
+                    writeln!(tr.td(), "{}", key)
+                        .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                    writeln!(tr.td(), "{}", val1)
+                        .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                    writeln!(tr.td(), "{}", val2)
+                        .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                }
+            }
+        }
+
+        // TODO: Proper file name
+        // TODO: All diff types
+        // TODO: Refactor
+        // TODO: Styling
+        let mut file = File::create("diff.html")
+            .map_err(|e| DtfError::DiffError(format!("Could not create file: {}", e)))?;
+
+        write!(file, "{}", buf.finish()).map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+
         Ok(())
     }
 
