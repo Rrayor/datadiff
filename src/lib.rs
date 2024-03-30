@@ -43,6 +43,10 @@ struct Arguments {
     #[clap(short)]
     write_to_file: Option<String>,
 
+    /// Output to html file instead of rendering tables in the terminal
+    #[clap(short = 'p', default_value_t = false)]
+    write_to_html: bool,
+
     /// Check for Key differences
     #[clap(short, default_value_t = false)]
     key_diffs: bool,

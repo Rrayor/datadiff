@@ -115,6 +115,7 @@ pub struct Config {
     pub render_array_diffs: bool,
     pub read_from_file: String,
     pub write_to_file: Option<String>,
+    pub write_to_html: bool,
     pub file_a: Option<String>,
     pub file_b: Option<String>,
     pub array_same_order: bool,
@@ -133,6 +134,7 @@ pub struct ConfigBuilder {
     render_array_diffs: bool,
     read_from_file: String,
     write_to_file: Option<String>,
+    write_to_html: bool,
     file_a: Option<String>,
     file_b: Option<String>,
     array_same_order: bool,
@@ -151,6 +153,7 @@ impl ConfigBuilder {
             render_array_diffs: false,
             read_from_file: String::new(),
             write_to_file: None,
+            write_to_html: false,
             file_a: None,
             file_b: None,
             array_same_order: false,
@@ -207,6 +210,11 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn write_to_html(mut self, write_to_html: bool) -> ConfigBuilder {
+        self.write_to_html = write_to_html;
+        self
+    }
+
     pub fn file_a(mut self, file_a: Option<String>) -> ConfigBuilder {
         self.file_a = file_a;
         self
@@ -234,6 +242,7 @@ impl ConfigBuilder {
             render_array_diffs: self.render_array_diffs,
             read_from_file: self.read_from_file,
             write_to_file: self.write_to_file,
+            write_to_html: self.write_to_html,
             file_a: self.file_a,
             file_b: self.file_b,
             array_same_order: self.array_same_order,

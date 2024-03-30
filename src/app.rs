@@ -76,6 +76,9 @@ impl App {
             self.file_handler
                 .write_to_file(self.diffs.clone())
                 .map_err(|e| DtfError::GeneralError(Box::new(e)))?;
+        } else if self.context.config.write_to_html {
+            self.render_html()
+                .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
         } else {
             self.render_tables()
                 .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
@@ -108,6 +111,7 @@ impl App {
             .render_array_diffs(args.array_diffs)
             .read_from_file(args.read_from_file)
             .write_to_file(args.write_to_file)
+            .write_to_html(args.write_to_html)
             .file_a(path1.clone())
             .file_b(path2.clone())
             .array_same_order(args.array_same_order)
@@ -185,6 +189,11 @@ impl App {
             println!("{}", table);
         }
 
+        Ok(())
+    }
+
+    fn render_html(&self) -> Result<(), DtfError> {
+        println!("render_html not implemented yet!");
         Ok(())
     }
 
