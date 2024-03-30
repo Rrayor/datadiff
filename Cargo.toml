@@ -14,3 +14,4 @@ spinners = "4.1.1"
 serde_json = "1.0.96"
 serde = { version = "1.0.163", features = ["derive"] }
 serde_yaml = "0.9.32"
+html-builder = "0.5.1"
