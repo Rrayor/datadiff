@@ -218,7 +218,7 @@ impl App {
             if let Some(diffs) = self.diffs.0.as_ref().filter(|kd| !kd.is_empty()) {
                 writeln!(body.h2(), "Key Differences")
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
-                let mut table = body.table();
+                let mut table = body.table().attr("class='diff-table'").attr("cellpadding='8'");
                 let mut tr1 = table.tr();
                 writeln!(tr1.th(), "Key")
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
@@ -233,7 +233,7 @@ impl App {
                     let val2 = diff.has.eq(self.context.lib_working_context.file_b.name.as_str());
 
                     let mut tr = table.tr();
-                    writeln!(tr.td(), "{}", key)
+                    writeln!(tr.td().attr("class='code'"), "{}", key)
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
                     writeln!(tr.td(), "{}", val1)
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
@@ -247,7 +247,7 @@ impl App {
             if let Some(diffs) = self.diffs.1.as_ref().filter(|td| !td.is_empty()) {
                 writeln!(body.h2(), "Type Differences")
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
-                let mut table = body.table();
+                let mut table = body.table().attr("class='diff-table'").attr("cellpadding='8'");
                 let mut tr1 = table.tr();
                 writeln!(tr1.th(), "Key")
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
@@ -262,7 +262,7 @@ impl App {
                     let val2 = &diff.type2;
 
                     let mut tr = table.tr();
-                    writeln!(tr.td(), "{}", key)
+                    writeln!(tr.td().attr("class='code'"), "{}", key)
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
                     writeln!(tr.td(), "{}", val1)
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
@@ -276,7 +276,7 @@ impl App {
             if let Some(diffs) = self.diffs.2.as_ref().filter(|vd| !vd.is_empty()) {
                 writeln!(body.h2(), "Value Differences")
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
-                let mut table = body.table();
+                let mut table = body.table().attr("class='diff-table'").attr("cellpadding='8'");
                 let mut tr1 = table.tr();
                 writeln!(tr1.th(), "Key")
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
@@ -291,7 +291,7 @@ impl App {
                     let val2 = &diff.value2;
 
                     let mut tr = table.tr();
-                    writeln!(tr.td(), "{}", key)
+                    writeln!(tr.td().attr("class='code'"), "{}", key)
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
                     writeln!(tr.td(), "{}", val1)
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
@@ -305,7 +305,7 @@ impl App {
             if let Some(diffs) = self.diffs.3.as_ref().filter(|ad| !ad.is_empty()) {
                 writeln!(body.h2(), "Array Differences")
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
-                let mut table = body.table();
+                let mut table = body.table().attr("class='diff-table'").attr("cellpadding='8'");
                 let mut tr1 = table.tr();
                 writeln!(tr1.th(), "Key")
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
@@ -327,11 +327,11 @@ impl App {
                         let val2 = self.get_display_values_by_column(&values, ArrayDiffDesc::BHas);
 
                         let mut tr = table.tr();
-                        writeln!(tr.td(), "{}", key)
+                        writeln!(tr.td().attr("class='code'"), "{}", key)
                             .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
-                        writeln!(tr.td(), "{}", val1.join(join_str))
+                        writeln!(tr.td().pre().attr("class='original'"), "{}", val1.join(join_str))
                             .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
-                        writeln!(tr.td(), "{}", val2.join(join_str))
+                        writeln!(tr.td().pre().attr("class='original'"), "{}", val2.join(join_str))
                             .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
                     }
                 }
@@ -339,6 +339,7 @@ impl App {
 
         // TODO: Proper file name
         // TODO: Refactor
+        // TODO: Proper error handling
         // TODO: Styling
         let mut file = File::create("diff.html")
             .map_err(|e| DtfError::DiffError(format!("Could not create file: {}", e)))?;
