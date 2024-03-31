@@ -1,7 +1,9 @@
+use std::collections::HashMap;
 use std::{error::Error, fs::File};
 use std::fmt::Write as FmtWrite;
 use std::io::Write as IoWrite;
 
+use crate::prettify_data;
 use crate::{
     array_table::ArrayTable, dtfterminal_types::{
         Config, ConfigBuilder, DiffCollection, DtfError, LibConfig, LibWorkingContext, ParsedArgs,
@@ -11,7 +13,7 @@ use crate::{
 
 use ::clap::Parser;
 use html_builder::{Buffer, Html5};
-use libdtf::core::diff_types::WorkingFile;
+use libdtf::core::diff_types::{ArrayDiff, ArrayDiffDesc, WorkingFile};
 use spinners::Spinner;
 
 /// Responsible for the main functionality of the app. Makes sure everything runs in the correct order.
@@ -218,30 +220,124 @@ impl App {
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
                 let mut table = body.table();
                 let mut tr1 = table.tr();
-                writeln!(tr1.th(), "Key").map_err(|e| DtfError::DiffError(format!("{}", e)))?;
-                writeln!(tr1.th(), "{}", self.context.config.file_a.clone().unwrap_or_else(|| { "Unknown".to_owned() }))
+                writeln!(tr1.th(), "Key")
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
-                writeln!(tr1.th(), "{}", self.context.config.file_b.clone().unwrap_or_else(|| { "Unknown".to_owned() }))
+                writeln!(tr1.th(), "{}", self.context.config.file_a.clone().unwrap_or_else(|| "Unknown".to_owned()))
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                writeln!(tr1.th(), "{}", self.context.config.file_b.clone().unwrap_or_else(|| "Unknown".to_owned()))
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
 
                 for diff in diffs {
-                    let key = diff.key.clone();
+                    let key = &diff.key;
                     let val1 = diff.has.eq(self.context.lib_working_context.file_a.name.as_str());
                     let val2 = diff.has.eq(self.context.lib_working_context.file_b.name.as_str());
 
                     let mut tr = table.tr();
                     writeln!(tr.td(), "{}", key)
-                        .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
                     writeln!(tr.td(), "{}", val1)
-                        .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
                     writeln!(tr.td(), "{}", val2)
-                        .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
                 }
             }
         }
 
+        if self.context.config.render_type_diffs {
+            if let Some(diffs) = self.diffs.1.as_ref().filter(|td| !td.is_empty()) {
+                writeln!(body.h2(), "Type Differences")
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                let mut table = body.table();
+                let mut tr1 = table.tr();
+                writeln!(tr1.th(), "Key")
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                writeln!(tr1.th(), "{}", self.context.config.file_a.clone().unwrap_or_else(|| "Unknown".to_owned()))
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                writeln!(tr1.th(), "{}", self.context.config.file_b.clone().unwrap_or_else(|| "Unknown".to_owned()))
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+
+                for diff in diffs {
+                    let key = &diff.key;
+                    let val1 = &diff.type1;
+                    let val2 = &diff.type2;
+
+                    let mut tr = table.tr();
+                    writeln!(tr.td(), "{}", key)
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                    writeln!(tr.td(), "{}", val1)
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                    writeln!(tr.td(), "{}", val2)
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                }
+            }
+        }
+
+        if self.context.config.render_value_diffs {
+            if let Some(diffs) = self.diffs.2.as_ref().filter(|vd| !vd.is_empty()) {
+                writeln!(body.h2(), "Value Differences")
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                let mut table = body.table();
+                let mut tr1 = table.tr();
+                writeln!(tr1.th(), "Key")
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                writeln!(tr1.th(), "{}", self.context.config.file_a.clone().unwrap_or_else(|| "Unknown".to_owned()))
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                writeln!(tr1.th(), "{}", self.context.config.file_b.clone().unwrap_or_else(|| "Unknown".to_owned()))
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+
+                for diff in diffs {
+                    let key = &diff.key;
+                    let val1 = &diff.value1;
+                    let val2 = &diff.value2;
+
+                    let mut tr = table.tr();
+                    writeln!(tr.td(), "{}", key)
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                    writeln!(tr.td(), "{}", val1)
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                    writeln!(tr.td(), "{}", val2)
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                }
+            }
+        }
+
+        if self.context.config.render_array_diffs {
+            if let Some(diffs) = self.diffs.3.as_ref().filter(|ad| !ad.is_empty()) {
+                writeln!(body.h2(), "Array Differences")
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                let mut table = body.table();
+                let mut tr1 = table.tr();
+                writeln!(tr1.th(), "Key")
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                writeln!(tr1.th(), "{}", self.context.config.file_a.clone().unwrap_or_else(|| "Unknown".to_owned()))
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                writeln!(tr1.th(), "{}", self.context.config.file_b.clone().unwrap_or_else(|| "Unknown".to_owned()))
+                    .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+
+
+                    let map = App::group_by_key(diffs);
+                    let join_str = if is_yaml_file(self.get_file_names().0) {
+                        ""
+                    } else {
+                        ",\n"
+                    };
+
+                    for (key, values) in map {
+                        let val1 = self.get_display_values_by_column(&values, ArrayDiffDesc::AHas);
+                        let val2 = self.get_display_values_by_column(&values, ArrayDiffDesc::BHas);
+
+                        let mut tr = table.tr();
+                        writeln!(tr.td(), "{}", key)
+                            .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                        writeln!(tr.td(), "{}", val1.join(join_str))
+                            .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                        writeln!(tr.td(), "{}", val2.join(join_str))
+                            .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                    }
+                }
+            }
+
         // TODO: Proper file name
-        // TODO: All diff types
         // TODO: Refactor
         // TODO: Styling
         let mut file = File::create("diff.html")
@@ -250,6 +346,41 @@ impl App {
         write!(file, "{}", buf.finish()).map_err(|e| DtfError::DiffError(format!("{}", e)))?;
 
         Ok(())
+    }
+    
+    fn get_display_values_by_column(
+        &self,
+        values: &[&ArrayDiff],
+        diff_desc: ArrayDiffDesc,
+    ) -> Vec<String> {
+        let file_names = self.get_file_names();
+        values
+            .iter()
+            .filter(|ad| ad.descriptor == diff_desc)
+            .map(|ad| prettify_data(file_names, ad.value.as_str()))
+            .collect()
+    }
+
+    fn group_by_key(data: &[ArrayDiff]) -> HashMap<&str, Vec<&ArrayDiff>> {
+        let mut map = HashMap::new();
+
+        for ad in data {
+            let key = ad.key.as_str();
+
+            if !map.contains_key(key) {
+                map.insert(key, vec![]);
+            }
+
+            map.get_mut(key).unwrap().push(ad);
+        }
+
+        map
+    }
+
+    fn get_file_names(&self) -> (&str, &str) {
+        let file_name_a = self.context.lib_working_context.file_a.name.as_str();
+        let file_name_b = self.context.lib_working_context.file_b.name.as_str();
+        (file_name_a, file_name_b)
     }
 
     fn create_working_context(config: &Config) -> WorkingContext {
