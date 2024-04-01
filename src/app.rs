@@ -208,6 +208,45 @@ impl App {
               self.context.config.file_b.clone().unwrap_or_else(|| { "Unknown".to_owned() }))
               .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
         head.meta().attr("charset='utf-8'");
+        writeln!(head.style(), "* {{
+            font-family: Arial, Helvetica, sans-serif;
+        }}
+        
+        h1, h2 {{
+            width: 100%;
+            margin: auto;
+            text-align: center;
+        }}
+        
+        h2 {{
+            margin-top: 2em;
+        }}
+        
+        .code {{
+            font-family: \"Lucida Console\", \"Courier New\", monospace;
+        }}
+        
+        .diff-table {{
+            width: 100%;
+        }}
+        
+        .diff-table th {{
+            background-color: #f0f0f0;
+        }}
+        
+        .diff-table th, .diff-table td{{
+            padding: 8px;
+            text-align: left;
+        }}
+        
+        .diff-table td {{
+            padding: 8px;
+        }}
+        
+        .diff-table tr:nth-child(odd) {{
+            background-color: #f6f6f6;
+        }}")
+            .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
         let mut body = html.body();
         writeln!(body.h1(), "Data Differences")
             .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
@@ -309,9 +348,9 @@ impl App {
                 let mut tr1 = table.tr();
                 writeln!(tr1.th(), "Key")
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
-                writeln!(tr1.th(), "{}", self.context.config.file_a.clone().unwrap_or_else(|| "Unknown".to_owned()))
+                writeln!(tr1.th(), "Only \"{}\" has", self.context.config.file_a.clone().unwrap_or_else(|| "Unknown".to_owned()))
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
-                writeln!(tr1.th(), "{}", self.context.config.file_b.clone().unwrap_or_else(|| "Unknown".to_owned()))
+                writeln!(tr1.th(), "Only \"{}\" has", self.context.config.file_b.clone().unwrap_or_else(|| "Unknown".to_owned()))
                     .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
 
 
