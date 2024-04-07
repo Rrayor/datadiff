@@ -54,11 +54,7 @@ pub trait TermTable<T: Diff> {
 }
 
 /// The data structure arguments are needed to be stored in
-pub type ParsedArgs = (
-    Option<String>,
-    Option<String>,
-    Config,
-);
+pub type ParsedArgs = (Option<String>, Option<String>, Config);
 
 /// How we move the result of diff checking around
 pub type DiffCollection = (
@@ -263,6 +259,12 @@ impl WorkingContext {
             lib_working_context,
             config,
         }
+    }
+
+    pub fn get_file_names(&self) -> (&str, &str) {
+        let file_name_a = self.lib_working_context.file_a.name.as_str();
+        let file_name_b = self.lib_working_context.file_b.name.as_str();
+        (file_name_a, file_name_b)
     }
 }
 

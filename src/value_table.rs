@@ -4,9 +4,8 @@ use term_table::{
     table_cell::{Alignment, TableCell},
 };
 
-use crate::{
-    dtfterminal_types::{LibWorkingContext, TableContext, TermTable}, prettify_data
-};
+use crate::dtfterminal_types::{LibWorkingContext, TableContext, TermTable};
+use crate::utils::prettify_data;
 
 pub struct ValueTable<'a> {
     context: TableContext<'a>,

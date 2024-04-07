@@ -1,17 +1,18 @@
 use app::App;
 use clap::{ArgGroup, Parser};
 use dtfterminal_types::DtfError;
-use serde_json::Value;
 
 mod app;
-mod json_app;
-mod yaml_app;
 mod array_table;
 pub mod dtfterminal_types;
 mod file_handler;
+mod html_renderer;
+mod json_app;
 mod key_table;
 mod type_table;
+mod utils;
 mod value_table;
+mod yaml_app;
 
 /// Command line arguments are handled here by clap
 #[derive(Default, Parser, Debug)]
@@ -70,35 +71,3 @@ pub fn run() -> Result<(), DtfError> {
 }
 
 // Utils
-
-/// Formats data based on file type
-fn prettify_data(file_names: (&str, &str), data: &str) -> String {
-    // at this point we can be sure, both file names have the same file type, so we can just check the first one
-    let (file1, _) = file_names;
-    if is_yaml_file(file1) {
-        return prettify_yaml_str(data);
-    }
-
-    prettify_json_str(data)
-}
-
-/// Formats JSON strings
-fn prettify_json_str(json_str: &str) -> String {
-    match serde_json::from_str::<Value>(json_str) {
-        Ok(json_value) => serde_json::to_string_pretty(&json_value).unwrap_or(json_str.to_owned()),
-        Err(_) => json_str.to_owned(),
-    }
-}
-
-/// Formats YAML strings
-fn prettify_yaml_str(yaml_str: &str) -> String {
-    match serde_yaml::from_str::<Value>(yaml_str) {
-        Ok(yaml_value) => serde_yaml::to_string(&yaml_value).unwrap_or(yaml_str.to_owned()),
-        Err(_) => yaml_str.to_owned(),
-    }
-}
-
-/// Checks if a file is a YAML file
-fn is_yaml_file(path: &str) -> bool {
-    path.ends_with(".yaml") || path.ends_with(".yml")
-}

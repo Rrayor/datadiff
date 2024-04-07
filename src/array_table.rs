@@ -6,8 +6,10 @@ use term_table::{
     table_cell::{Alignment, TableCell},
 };
 
+use crate::utils::prettify_data;
 use crate::{
-    dtfterminal_types::{LibWorkingContext, TableContext, TermTable}, is_yaml_file, prettify_data
+    dtfterminal_types::{LibWorkingContext, TableContext, TermTable},
+    utils::is_yaml_file,
 };
 
 pub struct ArrayTable<'a> {
@@ -43,8 +45,7 @@ impl<'a> TermTable<ArrayDiff> for ArrayTable<'a> {
         for (key, values) in map {
             let display_values1: Vec<String> =
                 self.get_display_values_by_column(&values, ArrayDiffDesc::AHas);
-            let display_values2 =
-                self.get_display_values_by_column(&values, ArrayDiffDesc::BHas);
+            let display_values2 = self.get_display_values_by_column(&values, ArrayDiffDesc::BHas);
 
             self.context.add_row(Row::new(vec![
                 TableCell::new(key),
