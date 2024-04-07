@@ -5,6 +5,9 @@ use serde_yaml::Value;
 
 use crate::dtfterminal_types::{Config, LibConfig, LibWorkingContext, WorkingContext};
 
+pub const CHECKMARK: &str = "\u{2713}";
+pub const MULTIPLY: &str = "\u{00D7}";
+
 pub fn group_by_key(data: &[ArrayDiff]) -> HashMap<&str, Vec<&ArrayDiff>> {
     let mut map = HashMap::new();
 

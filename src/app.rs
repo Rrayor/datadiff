@@ -1,9 +1,10 @@
 use std::{error::Error, fs::File, io::Write};
 
+use colored::Colorize;
 use html_builder::Buffer;
 
 use crate::html_renderer::HtmlRenderer;
-use crate::utils::{create_working_context, is_yaml_file};
+use crate::utils::{create_working_context, is_yaml_file, CHECKMARK};
 use crate::{
     array_table::ArrayTable,
     dtfterminal_types::{
@@ -82,6 +83,10 @@ impl App {
             spinners::Spinners::Monkey,
             "Checking for differences...\n".into(),
         );
+        // TODO: Arguments do not match the behavior. Write to file and browser view are mutually exclusive, but both can be specified as an argument.
+        //   Need further design work on browser view too.
+        //   What options should be supported? (file name, open in browser, light/dark theme, etc.)
+        //   The solution might be to have write to file and browser view work together somehow.
         if self.context.config.write_to_file.is_some() {
             self.file_handler
                 .write_to_file(self.diffs.clone())
@@ -94,7 +99,7 @@ impl App {
                 .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
         }
 
-        spinner.stop();
+        spinner.stop_with_message(format!("{} {}", CHECKMARK.green(), "Done!".green()));
         Ok(())
     }
 
@@ -121,7 +126,7 @@ impl App {
             .render_array_diffs(args.array_diffs)
             .read_from_file(args.read_from_file)
             .write_to_file(args.write_to_file)
-            .write_to_html(args.write_to_html)
+            .write_to_html(args.browser_view)
             .file_a(path1.clone())
             .file_b(path2.clone())
             .array_same_order(args.array_same_order)

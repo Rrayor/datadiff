@@ -1,3 +1,4 @@
+use crate::utils::{CHECKMARK, MULTIPLY};
 use colored::{Color, ColoredString, Colorize};
 use libdtf::core::diff_types::KeyDiff;
 use term_table::{
@@ -6,9 +7,6 @@ use term_table::{
 };
 
 use crate::dtfterminal_types::{LibWorkingContext, TableContext, TermTable};
-
-const CHECKMARK: &str = "\u{2713}";
-const MULTIPLY: &str = "\u{00D7}";
 
 pub struct KeyTable<'a> {
     context: TableContext<'a>,
