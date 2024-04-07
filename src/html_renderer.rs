@@ -79,7 +79,6 @@ pub struct HtmlRenderer<'a> {
     css: String,
 }
 
-// TODO: improve code quality
 impl<'a> HtmlRenderer<'a> {
     pub fn new(context: &'a WorkingContext) -> HtmlRenderer<'a> {
         HtmlRenderer {
@@ -204,16 +203,13 @@ impl<'a> HtmlRenderer<'a> {
         let mut tbody = table.tbody();
         for diff in diffs {
             let key = &diff.key;
-            // TODO: extract
-            let val1 = diff.has.eq(file_a);
-            let val2 = diff.has.eq(file_b);
 
-            let class1 = if val1 {
+            let class1 = if diff.has.eq(file_a) {
                 CLASSES.checkmark
             } else {
                 CLASSES.multiply
             };
-            let class2 = if val2 {
+            let class2 = if diff.has.eq(file_a) {
                 CLASSES.checkmark
             } else {
                 CLASSES.multiply
@@ -224,7 +220,6 @@ impl<'a> HtmlRenderer<'a> {
                 &mut tr.td().attr(&format!("class='{}'", CLASSES.code)),
                 &key.to_string(),
             )?;
-            // TODO: checkmark and x mark
             self.write_line(
                 &mut tr.td().span().attr(&format!("class='{}'", class1)),
                 " ",
