@@ -84,27 +84,22 @@ impl App {
             spinners::Spinners::Monkey,
             "Checking for differences...\n".into(),
         );
-        // TODO: Arguments do not match the behavior. Write to file and browser view are mutually exclusive, but both can be specified as an argument.
-        //   Need further design work on browser view too.
-        //   What options should be supported? (file name, open in browser, light/dark theme, etc.)
-        //   The solution might be to have write to file and browser view work together somehow.
-        if self.context.config.write_to_file.is_some() {
+
+        if let Some(_) = self.context.config.write_to_file {
             self.file_handler
                 .write_to_file(self.diffs.clone())
                 .map_err(|e| DtfError::GeneralError(Box::new(e)))?;
-        } else if self.context.config.browser_view.is_some() {
+        } else if let Some(browser_view) = &self.context.config.browser_view {
             self.render_html()
-                .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                .map_err(|e| DtfError::DiffError(e.to_string()))?;
 
             if !self.context.config.no_browser_show {
-                opener::open(path::Path::new(
-                    self.context.config.browser_view.as_ref().unwrap(),
-                ))
-                .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                opener::open(path::Path::new(browser_view))
+                    .map_err(|e| DtfError::DiffError(e.to_string()))?;
             }
         } else {
             self.render_tables()
-                .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+                .map_err(|e| DtfError::DiffError(e.to_string()))?;
         }
 
         spinner.stop_with_message(format!("{} {}", CHECKMARK.green(), "Done!".green()));
