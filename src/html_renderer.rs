@@ -309,6 +309,10 @@ impl<'a> HtmlRenderer<'a> {
     ) -> Result<(), DtfError> {
         let mut html = buf.html();
         let mut body = html.body();
+        self.write_line(
+            &mut body.h2().attr(&format!("id='{}'", IDS.array_diff)),
+            DISPLAY_TEXT.array_diff_title,
+        )?;
         let mut table = body
             .table()
             .attr(&format!("class='{}'", CLASSES.diff_table));
@@ -418,10 +422,12 @@ impl<'a> HtmlRenderer<'a> {
         }}
         
         ul.{} {{
+            max-width: 30%;
             margin-top: 2em;
             margin-bottom: 2em;
             padding: 1em;
-            list-style-type: disc;
+            list-style-type: none;
+            border: 1px solid #000;
         }}
         
         .{} h2 {{
@@ -430,19 +436,17 @@ impl<'a> HtmlRenderer<'a> {
         
         .{} li {{
             width: 100%;
-            margin: 1em 0;
             padding: 0.5em 0;
-            border-top: 1px solid #000;
+            font-size: 1.2em;
         }}
         
         .{} li a {{
             color: #000;
-            text-decoration: none;
+            text-decoration: underline;
         }}
         
         .{} li a:hover {{
-            color: #000;
-            text-decoration: underline;
+            color: #0000ff;
         }}
         
         .{} {{
@@ -569,20 +573,17 @@ impl<'a> HtmlRenderer<'a> {
         
         .{} li {{
             width: 100%;
-            margin: 1em 0;
             padding: 0.5em 0;
-            border-top: 1px solid #ffffff;
+            font-size: 1.2em;
         }}
         
         .{} li a {{
             color: #ffffff;
-            text-decoration: none;
+            text-decoration: underline;
         }}
         
         .{} li a:hover {{
-            color: #ffffff;
-            text-decoration: underline;
-        
+            color: #787878;        
         }}
         
         .{} {{
