@@ -111,10 +111,12 @@ pub struct Config {
     pub render_array_diffs: bool,
     pub read_from_file: String,
     pub write_to_file: Option<String>,
-    pub write_to_html: bool,
     pub file_a: Option<String>,
     pub file_b: Option<String>,
     pub array_same_order: bool,
+    pub browser_view: Option<String>,
+    pub printer_friendly: bool,
+    pub no_browser_show: bool,
 }
 
 /// Helper class for creating Config instances
@@ -130,10 +132,12 @@ pub struct ConfigBuilder {
     render_array_diffs: bool,
     read_from_file: String,
     write_to_file: Option<String>,
-    write_to_html: bool,
     file_a: Option<String>,
     file_b: Option<String>,
     array_same_order: bool,
+    browser_view: Option<String>,
+    printer_friendly: bool,
+    no_browser_show: bool,
 }
 
 impl ConfigBuilder {
@@ -149,10 +153,12 @@ impl ConfigBuilder {
             render_array_diffs: false,
             read_from_file: String::new(),
             write_to_file: None,
-            write_to_html: false,
             file_a: None,
             file_b: None,
             array_same_order: false,
+            browser_view: None,
+            printer_friendly: false,
+            no_browser_show: false,
         }
     }
 
@@ -206,11 +212,6 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn write_to_html(mut self, write_to_html: bool) -> ConfigBuilder {
-        self.write_to_html = write_to_html;
-        self
-    }
-
     pub fn file_a(mut self, file_a: Option<String>) -> ConfigBuilder {
         self.file_a = file_a;
         self
@@ -226,6 +227,21 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn browser_view(mut self, browser_view: Option<String>) -> ConfigBuilder {
+        self.browser_view = browser_view;
+        self
+    }
+
+    pub fn printer_friendly(mut self, printer_friendly: bool) -> ConfigBuilder {
+        self.printer_friendly = printer_friendly;
+        self
+    }
+
+    pub fn no_browser_show(mut self, no_browser_show: bool) -> ConfigBuilder {
+        self.no_browser_show = no_browser_show;
+        self
+    }
+
     pub fn build(self) -> Config {
         Config {
             check_for_key_diffs: self.check_for_key_diffs,
@@ -238,10 +254,12 @@ impl ConfigBuilder {
             render_array_diffs: self.render_array_diffs,
             read_from_file: self.read_from_file,
             write_to_file: self.write_to_file,
-            write_to_html: self.write_to_html,
             file_a: self.file_a,
             file_b: self.file_b,
             array_same_order: self.array_same_order,
+            browser_view: self.browser_view,
+            printer_friendly: self.printer_friendly,
+            no_browser_show: self.no_browser_show,
         }
     }
 }

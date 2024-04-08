@@ -29,6 +29,13 @@ mod yaml_app;
         ArgGroup::new("file-options")
         .required(true)
         .args(&["check_files", "read_from_file"])
+    ),
+    group(
+        ArgGroup::new("browser-options")
+        .required(false)
+        .requires("browser_view")
+        .multiple(true)
+        .args(&["printer_friendly", "no_browser_show"])
     )
 )]
 /// Find the difference in your data structures
@@ -45,8 +52,16 @@ struct Arguments {
     write_to_file: Option<String>,
 
     /// Browser View: Output to an HTML file instead of rendering tables in the terminal
-    #[clap(short = 'b', default_value_t = false)]
-    browser_view: bool,
+    #[clap(short)]
+    browser_view: Option<String>,
+
+    /// Printer friendly HTML output
+    #[clap(short, default_value_t = false)]
+    printer_friendly: bool,
+
+    /// Don't show HTML in browser after creation
+    #[clap(short, default_value_t = false)]
+    no_browser_show: bool,
 
     /// Check for Key differences
     #[clap(short, default_value_t = false)]

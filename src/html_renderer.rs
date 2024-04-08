@@ -83,7 +83,7 @@ impl<'a> HtmlRenderer<'a> {
     pub fn new(context: &'a WorkingContext) -> HtmlRenderer<'a> {
         HtmlRenderer {
             context,
-            css: HtmlRenderer::create_css(),
+            css: HtmlRenderer::create_css(context.config.printer_friendly),
         }
     }
 
@@ -209,7 +209,7 @@ impl<'a> HtmlRenderer<'a> {
             } else {
                 CLASSES.multiply
             };
-            let class2 = if diff.has.eq(file_a) {
+            let class2 = if diff.has.eq(file_b) {
                 CLASSES.checkmark
             } else {
                 CLASSES.multiply
@@ -357,7 +357,7 @@ impl<'a> HtmlRenderer<'a> {
         writeln!(node, "{}", text).map_err(|e| DtfError::DiffError(format!("{}", e)))
     }
 
-    fn create_css() -> String {
+    fn create_css(printer_friendly: bool) -> String {
         // 0: code
         // 1: header
         // 2: header
@@ -378,8 +378,135 @@ impl<'a> HtmlRenderer<'a> {
         // 17. diff-table
         // 18. checkmark
         // 19. multiply
-        format!(
-            "* {{
+        if printer_friendly {
+            format!(
+                "* {{
+            font-family: Arial, Helvetica, sans-serif;
+        }}
+        
+        body {{
+            padding: 1em;
+            font-size: 14px;
+            background-color: #fff;
+            color: #000;
+        }}
+        
+        h1, h2 {{
+            width: 100%;
+            text-align: left;
+        }}
+        
+        h2 {{
+            margin-top: 2em;
+        }}
+        
+        .{} {{
+            font-family: \"Lucida Console\", \"Courier New\", monospace;
+        }}
+        
+        .{} {{
+        }}
+        
+        .{} .{} {{
+        }}
+        
+        .{} .{} p .{} {{
+            font-weight: bold;
+            background-color: rgba(100, 100, 100, 0.4);
+            padding: 0.2em;
+            border-radius: 2px;
+        }}
+        
+        ul.{} {{
+            margin-top: 2em;
+            margin-bottom: 2em;
+            padding: 1em;
+            list-style-type: disc;
+        }}
+        
+        .{} h2 {{
+            margin-top: 0;
+        }}
+        
+        .{} li {{
+            width: 100%;
+            margin: 1em 0;
+            padding: 0.5em 0;
+            border-top: 1px solid #000;
+        }}
+        
+        .{} li a {{
+            color: #000;
+            text-decoration: none;
+        }}
+        
+        .{} li a:hover {{
+            color: #000;
+            text-decoration: underline;
+        }}
+        
+        .{} {{
+            margin: auto;
+            margin-top: 2em;
+            text-align: center;
+            width: 100%;
+            color: #000;
+        }}
+        
+        .{} th, .{} td{{
+            padding: 1.2em;
+            text-align: left;
+        }}
+        
+        .{} th {{
+            background-color: rgba(100, 100, 100, 0.3);
+        }}
+        
+        .{} tr:nth-child(odd) {{
+            background-color: rgba(100, 100, 100, 0.1);
+        }}
+        
+        .{} tr:nth-child(even) {{
+            background-color: rgba(100, 100, 100, 0.2);
+        }}
+        
+        .{}::after {{
+            content: \"\\2713\";
+            font-weight: bold;
+            font-size: 1.5em;
+            color: #5aa25a;
+        }}
+
+        .{}::after {{
+            content: \"\\00D7\";
+            font-weight: bold;
+            font-size: 1.5em;
+            color: #ff0000;
+        }}",
+                CLASSES.code,              // 0
+                CLASSES.header,            // 1
+                CLASSES.header,            // 2
+                CLASSES.lead,              // 3
+                CLASSES.header,            // 4
+                CLASSES.lead,              // 5
+                CLASSES.code,              // 6
+                CLASSES.table_of_contents, // 7
+                CLASSES.table_of_contents, // 8
+                CLASSES.table_of_contents, // 9
+                CLASSES.table_of_contents, // 10
+                CLASSES.table_of_contents, // 11
+                CLASSES.diff_table,        // 12
+                CLASSES.diff_table,        // 13
+                CLASSES.diff_table,        // 14
+                CLASSES.diff_table,        // 15
+                CLASSES.diff_table,        // 16
+                CLASSES.diff_table,        // 17
+                CLASSES.checkmark,         // 18
+                CLASSES.multiply           // 19
+            )
+        } else {
+            format!(
+                "* {{
             font-family: Arial, Helvetica, sans-serif;
         }}
         
@@ -486,33 +613,38 @@ impl<'a> HtmlRenderer<'a> {
         
         .{}::after {{
             content: \"\\2713\";
+            font-weight: bold;
+            font-size: 1.5em;
             color:  #00ff00;
         }}
 
         .{}::after {{
             content: \"\\00D7\";
+            font-weight: bold;
+            font-size: 1.5em;
             color: #ff0000;
         }}",
-            CLASSES.code,              // 0
-            CLASSES.header,            // 1
-            CLASSES.header,            // 2
-            CLASSES.lead,              // 3
-            CLASSES.header,            // 4
-            CLASSES.lead,              // 5
-            CLASSES.code,              // 6
-            CLASSES.table_of_contents, // 7
-            CLASSES.table_of_contents, // 8
-            CLASSES.table_of_contents, // 9
-            CLASSES.table_of_contents, // 10
-            CLASSES.table_of_contents, // 11
-            CLASSES.diff_table,        // 12
-            CLASSES.diff_table,        // 13
-            CLASSES.diff_table,        // 14
-            CLASSES.diff_table,        // 15
-            CLASSES.diff_table,        // 16
-            CLASSES.diff_table,        // 17
-            CLASSES.checkmark,         // 18
-            CLASSES.multiply           // 19
-        )
+                CLASSES.code,              // 0
+                CLASSES.header,            // 1
+                CLASSES.header,            // 2
+                CLASSES.lead,              // 3
+                CLASSES.header,            // 4
+                CLASSES.lead,              // 5
+                CLASSES.code,              // 6
+                CLASSES.table_of_contents, // 7
+                CLASSES.table_of_contents, // 8
+                CLASSES.table_of_contents, // 9
+                CLASSES.table_of_contents, // 10
+                CLASSES.table_of_contents, // 11
+                CLASSES.diff_table,        // 12
+                CLASSES.diff_table,        // 13
+                CLASSES.diff_table,        // 14
+                CLASSES.diff_table,        // 15
+                CLASSES.diff_table,        // 16
+                CLASSES.diff_table,        // 17
+                CLASSES.checkmark,         // 18
+                CLASSES.multiply           // 19
+            )
+        }
     }
 }

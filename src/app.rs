@@ -1,3 +1,4 @@
+use std::path;
 use std::{error::Error, fs::File, io::Write};
 
 use colored::Colorize;
@@ -91,9 +92,16 @@ impl App {
             self.file_handler
                 .write_to_file(self.diffs.clone())
                 .map_err(|e| DtfError::GeneralError(Box::new(e)))?;
-        } else if self.context.config.write_to_html {
+        } else if self.context.config.browser_view.is_some() {
             self.render_html()
                 .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+
+            if !self.context.config.no_browser_show {
+                opener::open(path::Path::new(
+                    self.context.config.browser_view.as_ref().unwrap(),
+                ))
+                .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
+            }
         } else {
             self.render_tables()
                 .map_err(|e| DtfError::DiffError(format!("{}", e)))?;
@@ -126,10 +134,12 @@ impl App {
             .render_array_diffs(args.array_diffs)
             .read_from_file(args.read_from_file)
             .write_to_file(args.write_to_file)
-            .write_to_html(args.browser_view)
             .file_a(path1.clone())
             .file_b(path2.clone())
             .array_same_order(args.array_same_order)
+            .browser_view(args.browser_view)
+            .printer_friendly(args.printer_friendly)
+            .no_browser_show(args.no_browser_show)
             .build();
 
         (path1, path2, config)
@@ -267,9 +277,9 @@ impl App {
         if render_array_diffs {
             html_renderer.html_render_array_diff_table(&mut buf, array_diffs.unwrap())?;
         }
-        // TODO: Proper file name
-        // TODO: light theme
-        let mut file = File::create("diff.html")
+
+        // At this point the file name is sure to exist
+        let mut file = File::create(self.context.config.browser_view.as_ref().unwrap())
             .map_err(|e| DtfError::DiffError(format!("Could not create file: {}", e)))?;
 
         write!(file, "{}", buf.finish()).map_err(|e| DtfError::DiffError(format!("{}", e)))
