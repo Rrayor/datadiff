@@ -386,6 +386,7 @@ impl<'a> HtmlRenderer<'a> {
             format!(
                 "* {{
             font-family: Arial, Helvetica, sans-serif;
+            box-sizing: border-box;
         }}
         
         body {{
@@ -512,6 +513,7 @@ impl<'a> HtmlRenderer<'a> {
             format!(
                 "* {{
             font-family: Arial, Helvetica, sans-serif;
+            box-sizing: border-box;
         }}
         
         body {{
