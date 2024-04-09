@@ -258,19 +258,19 @@ impl App {
         )?;
 
         if render_key_diffs {
-            html_renderer.html_render_key_diff_table(&mut buf, key_diffs.unwrap())?;
+            html_renderer.render_key_diff_table(&mut buf, key_diffs.unwrap())?;
         }
 
         if render_type_diffs {
-            html_renderer.html_render_type_diff_table(&mut buf, type_diffs.unwrap())?;
+            html_renderer.render_type_diff_table(&mut buf, type_diffs.unwrap())?;
         }
 
         if render_value_diffs {
-            html_renderer.html_render_value_diff_table(&mut buf, value_diffs.unwrap())?;
+            html_renderer.render_value_diff_table(&mut buf, value_diffs.unwrap())?;
         }
 
         if render_array_diffs {
-            html_renderer.html_render_array_diff_table(&mut buf, array_diffs.unwrap())?;
+            html_renderer.render_array_diff_table(&mut buf, array_diffs.unwrap())?;
         }
 
         // At this point the file name is sure to exist

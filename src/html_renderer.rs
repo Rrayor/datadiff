@@ -39,6 +39,7 @@ struct DisplayText {
     array_diff_title: &'static str,
     only: &'static str,
     has: &'static str,
+    misses: &'static str,
 }
 
 const CLASSES: Classes = Classes {
@@ -72,8 +73,10 @@ const DISPLAY_TEXT: DisplayText = DisplayText {
     array_diff_title: "Array Differences",
     only: "Only",
     has: "has",
+    misses: "misses",
 };
 
+// TODO: Document that I intentionally don't use captions for tables as they are the main content and there is no point in repeating the title of the table.
 pub struct HtmlRenderer<'a> {
     context: &'a WorkingContext,
     css: String,
@@ -179,7 +182,7 @@ impl<'a> HtmlRenderer<'a> {
         Ok(())
     }
 
-    pub fn html_render_key_diff_table(
+    pub fn render_key_diff_table(
         &mut self,
         buf: &mut Buffer,
         diffs: &Vec<libdtf::core::diff_types::KeyDiff>,
@@ -196,43 +199,49 @@ impl<'a> HtmlRenderer<'a> {
             .attr(&format!("class='{}'", CLASSES.diff_table));
         let mut thead = table.thead();
         let mut tr1 = thead.tr();
-        self.write_line(&mut tr1.th(), DISPLAY_TEXT.key)?;
-        self.write_line(&mut tr1.th(), file_a)?;
-        self.write_line(&mut tr1.th(), file_b)?;
+        self.write_line(&mut tr1.th().attr("scope='col'"), DISPLAY_TEXT.key)?;
+        self.write_line(&mut tr1.th().attr("scope='col'"), file_a)?;
+        self.write_line(&mut tr1.th().attr("scope='col'"), file_b)?;
 
         let mut tbody = table.tbody();
         for diff in diffs {
             let key = &diff.key;
-
-            let class1 = if diff.has.eq(file_a) {
-                CLASSES.checkmark
+            let (file_a_description, class1) = if diff.has.eq(file_a) {
+                (DISPLAY_TEXT.has, CLASSES.checkmark)
             } else {
-                CLASSES.multiply
+                (DISPLAY_TEXT.misses, CLASSES.multiply)
             };
-            let class2 = if diff.has.eq(file_b) {
-                CLASSES.checkmark
+
+            let (file_b_description, class2) = if diff.has.eq(file_b) {
+                (DISPLAY_TEXT.has, CLASSES.checkmark)
             } else {
-                CLASSES.multiply
+                (DISPLAY_TEXT.misses, CLASSES.multiply)
             };
 
             let mut tr = tbody.tr();
             self.write_line(
-                &mut tr.td().attr(&format!("class='{}'", CLASSES.code)),
+                &mut tr
+                    .th()
+                    .attr(&format!("class='{}'", CLASSES.code))
+                    .attr("scope='row'"),
                 &key.to_string(),
             )?;
+            // FIXME: With the current CSS styling, the text is not available to screen readers.
+            // Should find a way to hide the text visually but still make it available to screen readers.
+            // Visually only the checkmark and multiply symbols should be visible.
             self.write_line(
                 &mut tr.td().span().attr(&format!("class='{}'", class1)),
-                " ",
+                &format!("{} {}", file_a, file_a_description),
             )?;
             self.write_line(
                 &mut tr.td().span().attr(&format!("class='{}'", class2)),
-                " ",
+                &format!("{} {}", file_b, file_b_description),
             )?;
         }
         Ok(())
     }
 
-    pub fn html_render_type_diff_table(
+    pub fn render_type_diff_table(
         &mut self,
         buf: &mut Buffer,
         diffs: &Vec<libdtf::core::diff_types::TypeDiff>,
@@ -249,9 +258,9 @@ impl<'a> HtmlRenderer<'a> {
             .attr(&format!("class='{}'", CLASSES.diff_table));
         let mut thead = table.thead();
         let mut tr1 = thead.tr();
-        self.write_line(&mut tr1.th(), DISPLAY_TEXT.key)?;
-        self.write_line(&mut tr1.th(), file_a)?;
-        self.write_line(&mut tr1.th(), file_b)?;
+        self.write_line(&mut tr1.th().attr("scope='col'"), DISPLAY_TEXT.key)?;
+        self.write_line(&mut tr1.th().attr("scope='col'"), file_a)?;
+        self.write_line(&mut tr1.th().attr("scope='col'"), file_b)?;
 
         let mut tbody = table.tbody();
         for diff in diffs {
@@ -260,14 +269,20 @@ impl<'a> HtmlRenderer<'a> {
             let val2 = &diff.type2;
 
             let mut tr = tbody.tr();
-            self.write_line(&mut tr.td().attr(&format!("class='{}'", CLASSES.code)), key)?;
+            self.write_line(
+                &mut tr
+                    .th()
+                    .attr(&format!("class='{}'", CLASSES.code))
+                    .attr("scope='row'"),
+                key,
+            )?;
             self.write_line(&mut tr.td(), val1)?;
             self.write_line(&mut tr.td(), val2)?;
         }
         Ok(())
     }
 
-    pub fn html_render_value_diff_table(
+    pub fn render_value_diff_table(
         &mut self,
         buf: &mut Buffer,
         diffs: &Vec<libdtf::core::diff_types::ValueDiff>,
@@ -284,9 +299,9 @@ impl<'a> HtmlRenderer<'a> {
             .attr(&format!("class='{}'", CLASSES.diff_table));
         let mut thead = table.thead();
         let mut tr1 = thead.tr();
-        self.write_line(&mut tr1.th(), DISPLAY_TEXT.key)?;
-        self.write_line(&mut tr1.th(), file_a)?;
-        self.write_line(&mut tr1.th(), file_b)?;
+        self.write_line(&mut tr1.th().attr("scope='col'"), DISPLAY_TEXT.key)?;
+        self.write_line(&mut tr1.th().attr("scope='col'"), file_a)?;
+        self.write_line(&mut tr1.th().attr("scope='col'"), file_b)?;
 
         let mut tbody = table.tbody();
         for diff in diffs {
@@ -295,14 +310,20 @@ impl<'a> HtmlRenderer<'a> {
             let val2 = &diff.value2;
 
             let mut tr = tbody.tr();
-            self.write_line(&mut tr.td().attr(&format!("class='{}'", CLASSES.code)), key)?;
+            self.write_line(
+                &mut tr
+                    .th()
+                    .attr(&format!("class='{}'", CLASSES.code))
+                    .attr("scope='row'"),
+                key,
+            )?;
             self.write_line(&mut tr.td(), val1)?;
             self.write_line(&mut tr.td(), val2)?;
         }
         Ok(())
     }
 
-    pub fn html_render_array_diff_table(
+    pub fn render_array_diff_table(
         &mut self,
         buf: &mut Buffer,
         diffs: &Vec<ArrayDiff>,
@@ -318,9 +339,15 @@ impl<'a> HtmlRenderer<'a> {
             .attr(&format!("class='{}'", CLASSES.diff_table));
         let mut thead = table.thead();
         let mut tr1 = thead.tr();
-        self.write_line(&mut tr1.th(), "Key")?;
-        self.write_line(&mut tr1.th(), &self.format_header(true))?;
-        self.write_line(&mut tr1.th(), &self.format_header(false))?;
+        self.write_line(&mut tr1.th().attr("scope='col'"), "Key")?;
+        self.write_line(
+            &mut tr1.th().attr("scope='col'"),
+            &self.format_array_diff_table_header(true),
+        )?;
+        self.write_line(
+            &mut tr1.th().attr("scope='col'"),
+            &self.format_array_diff_table_header(false),
+        )?;
         let map = group_by_key(diffs);
         let join_str = if is_yaml_file(self.context.get_file_names().0) {
             ""
@@ -335,7 +362,10 @@ impl<'a> HtmlRenderer<'a> {
 
             let mut tr = tbody.tr();
             self.write_line(
-                &mut tr.td().attr(&format!("class='{}'", CLASSES.code)),
+                &mut tr
+                    .th()
+                    .attr(&format!("class='{}'", CLASSES.code))
+                    .attr("scope='row'"),
                 &key.to_string(),
             )?;
             self.write_line(
@@ -350,7 +380,7 @@ impl<'a> HtmlRenderer<'a> {
         Ok(())
     }
 
-    fn format_header(&self, is_file_a: bool) -> String {
+    fn format_array_diff_table_header(&self, is_file_a: bool) -> String {
         let (file_a, file_b) = self.context.get_file_names();
         let file_name = if is_file_a { file_a } else { file_b };
 
@@ -362,27 +392,26 @@ impl<'a> HtmlRenderer<'a> {
     }
 
     fn create_css(printer_friendly: bool) -> String {
-        // 0: code
-        // 1: header
-        // 2: header
-        // 3: lead
-        // 4: header
-        // 5: lead
-        // 6: code
-        // 7. table-of-contents
-        // 8. table-of-contents
-        // 9. table-of-contents
-        // 10. table-of-contents
-        // 11. table-of-contents
-        // 12. diff-table
-        // 13. diff-table
-        // 14. diff-table
-        // 15. diff-table
-        // 16. diff-table
-        // 17. diff-table
-        // 18. checkmark
-        // 19. multiply
         if printer_friendly {
+            // 0: code
+            // 1: header
+            // 2: lead
+            // 3: code
+            // 4. table-of-contents
+            // 5. table-of-contents
+            // 6. table-of-contents
+            // 7. table-of-contents
+            // 8. table-of-contents
+            // 9. diff-table
+            // 10. diff-table
+            // 11. diff-table
+            // 12. diff-table
+            // 13. diff-table
+            // 14. diff-table
+            // 15. checkmark
+            // 16. multiply
+            // 17. checkmark
+            // 18. multiply
             format!(
                 "* {{
             font-family: Arial, Helvetica, sans-serif;
@@ -407,12 +436,6 @@ impl<'a> HtmlRenderer<'a> {
         
         .{} {{
             font-family: \"Lucida Console\", \"Courier New\", monospace;
-        }}
-        
-        .{} {{
-        }}
-        
-        .{} .{} {{
         }}
         
         .{} .{} p .{} {{
@@ -474,15 +497,25 @@ impl<'a> HtmlRenderer<'a> {
         .{} tr:nth-child(even) {{
             background-color: rgba(100, 100, 100, 0.2);
         }}
+
+        .{} {{
+            visibility: hidden;
+        }}
+
+        .{} {{
+            visibility: hidden;
+        }}
         
-        .{}::after {{
+        .{}::before {{
+            visibility: visible;
             content: \"\\2713\";
             font-weight: bold;
             font-size: 1.5em;
             color: #5aa25a;
         }}
 
-        .{}::after {{
+        .{}::before {{
+            visibility: visible;
             content: \"\\00D7\";
             font-weight: bold;
             font-size: 1.5em;
@@ -490,26 +523,47 @@ impl<'a> HtmlRenderer<'a> {
         }}",
                 CLASSES.code,              // 0
                 CLASSES.header,            // 1
-                CLASSES.header,            // 2
-                CLASSES.lead,              // 3
-                CLASSES.header,            // 4
-                CLASSES.lead,              // 5
-                CLASSES.code,              // 6
+                CLASSES.lead,              // 2
+                CLASSES.code,              // 3
+                CLASSES.table_of_contents, // 4
+                CLASSES.table_of_contents, // 5
+                CLASSES.table_of_contents, // 6
                 CLASSES.table_of_contents, // 7
                 CLASSES.table_of_contents, // 8
-                CLASSES.table_of_contents, // 9
-                CLASSES.table_of_contents, // 10
-                CLASSES.table_of_contents, // 11
+                CLASSES.diff_table,        // 9
+                CLASSES.diff_table,        // 10
+                CLASSES.diff_table,        // 11
                 CLASSES.diff_table,        // 12
                 CLASSES.diff_table,        // 13
                 CLASSES.diff_table,        // 14
-                CLASSES.diff_table,        // 15
-                CLASSES.diff_table,        // 16
-                CLASSES.diff_table,        // 17
-                CLASSES.checkmark,         // 18
-                CLASSES.multiply           // 19
+                CLASSES.checkmark,         // 15
+                CLASSES.multiply,          // 16
+                CLASSES.checkmark,         // 17
+                CLASSES.multiply           // 18
             )
         } else {
+            // 0: code
+            // 1: header
+            // 2: header
+            // 3: lead
+            // 4: header
+            // 5: lead
+            // 6: code
+            // 7. table-of-contents
+            // 8. table-of-contents
+            // 9. table-of-contents
+            // 10. table-of-contents
+            // 11. table-of-contents
+            // 12. diff-table
+            // 13. diff-table
+            // 14. diff-table
+            // 15. diff-table
+            // 16. diff-table
+            // 17. diff-table
+            // 18. checkmark
+            // 19. multiply
+            // 20. checkmark
+            // 21. multiply
             format!(
                 "* {{
             font-family: Arial, Helvetica, sans-serif;
@@ -613,15 +667,25 @@ impl<'a> HtmlRenderer<'a> {
         .{} tr:nth-child(even) {{
             background-color: rgba(100, 100, 100, 0.2);
         }}
+
+        .{} {{
+            visibility: hidden;
+        }}
+
+        .{} {{
+            visibility: hidden;
+        }}
         
-        .{}::after {{
+        .{}::before {{
+            visibility: visible;
             content: \"\\2713\";
             font-weight: bold;
             font-size: 1.5em;
             color:  #00ff00;
         }}
 
-        .{}::after {{
+        .{}::before {{
+            visibility: visible;
             content: \"\\00D7\";
             font-weight: bold;
             font-size: 1.5em;
@@ -646,7 +710,9 @@ impl<'a> HtmlRenderer<'a> {
                 CLASSES.diff_table,        // 16
                 CLASSES.diff_table,        // 17
                 CLASSES.checkmark,         // 18
-                CLASSES.multiply           // 19
+                CLASSES.multiply,          // 19
+                CLASSES.checkmark,         // 20
+                CLASSES.multiply           // 21
             )
         }
     }
