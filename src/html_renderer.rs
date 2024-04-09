@@ -39,7 +39,6 @@ struct DisplayText {
     array_diff_title: &'static str,
     only: &'static str,
     has: &'static str,
-    misses: &'static str,
 }
 
 const CLASSES: Classes = Classes {
@@ -73,10 +72,8 @@ const DISPLAY_TEXT: DisplayText = DisplayText {
     array_diff_title: "Array Differences",
     only: "Only",
     has: "has",
-    misses: "misses",
 };
 
-// TODO: Document that I intentionally don't use captions for tables as they are the main content and there is no point in repeating the title of the table.
 pub struct HtmlRenderer<'a> {
     context: &'a WorkingContext,
     css: String,
@@ -206,17 +203,16 @@ impl<'a> HtmlRenderer<'a> {
         let mut tbody = table.tbody();
         for diff in diffs {
             let key = &diff.key;
-            let (file_a_description, class1) = if diff.has.eq(file_a) {
-                (DISPLAY_TEXT.has, CLASSES.checkmark)
-            } else {
-                (DISPLAY_TEXT.misses, CLASSES.multiply)
+            let get_class = |file| {
+                if diff.has.eq(file) {
+                    CLASSES.checkmark
+                } else {
+                    CLASSES.multiply
+                }
             };
 
-            let (file_b_description, class2) = if diff.has.eq(file_b) {
-                (DISPLAY_TEXT.has, CLASSES.checkmark)
-            } else {
-                (DISPLAY_TEXT.misses, CLASSES.multiply)
-            };
+            let class1 = get_class(file_a);
+            let class2 = get_class(file_b);
 
             let mut tr = tbody.tr();
             self.write_line(
@@ -226,17 +222,9 @@ impl<'a> HtmlRenderer<'a> {
                     .attr("scope='row'"),
                 &key.to_string(),
             )?;
-            // FIXME: With the current CSS styling, the text is not available to screen readers.
-            // Should find a way to hide the text visually but still make it available to screen readers.
-            // Visually only the checkmark and multiply symbols should be visible.
-            self.write_line(
-                &mut tr.td().span().attr(&format!("class='{}'", class1)),
-                &format!("{} {}", file_a, file_a_description),
-            )?;
-            self.write_line(
-                &mut tr.td().span().attr(&format!("class='{}'", class2)),
-                &format!("{} {}", file_b, file_b_description),
-            )?;
+
+            tr.td().span().attr(&format!("class='{}'", class1));
+            tr.td().span().attr(&format!("class='{}'", class2));
         }
         Ok(())
     }
@@ -410,8 +398,6 @@ impl<'a> HtmlRenderer<'a> {
             // 14. diff-table
             // 15. checkmark
             // 16. multiply
-            // 17. checkmark
-            // 18. multiply
             format!(
                 "* {{
             font-family: Arial, Helvetica, sans-serif;
@@ -497,14 +483,6 @@ impl<'a> HtmlRenderer<'a> {
         .{} tr:nth-child(even) {{
             background-color: rgba(100, 100, 100, 0.2);
         }}
-
-        .{} {{
-            visibility: hidden;
-        }}
-
-        .{} {{
-            visibility: hidden;
-        }}
         
         .{}::before {{
             visibility: visible;
@@ -538,8 +516,6 @@ impl<'a> HtmlRenderer<'a> {
                 CLASSES.diff_table,        // 14
                 CLASSES.checkmark,         // 15
                 CLASSES.multiply,          // 16
-                CLASSES.checkmark,         // 17
-                CLASSES.multiply           // 18
             )
         } else {
             // 0: code
@@ -562,8 +538,6 @@ impl<'a> HtmlRenderer<'a> {
             // 17. diff-table
             // 18. checkmark
             // 19. multiply
-            // 20. checkmark
-            // 21. multiply
             format!(
                 "* {{
             font-family: Arial, Helvetica, sans-serif;
@@ -667,14 +641,6 @@ impl<'a> HtmlRenderer<'a> {
         .{} tr:nth-child(even) {{
             background-color: rgba(100, 100, 100, 0.2);
         }}
-
-        .{} {{
-            visibility: hidden;
-        }}
-
-        .{} {{
-            visibility: hidden;
-        }}
         
         .{}::before {{
             visibility: visible;
@@ -711,8 +677,6 @@ impl<'a> HtmlRenderer<'a> {
                 CLASSES.diff_table,        // 17
                 CLASSES.checkmark,         // 18
                 CLASSES.multiply,          // 19
-                CLASSES.checkmark,         // 20
-                CLASSES.multiply           // 21
             )
         }
     }
