@@ -106,6 +106,7 @@ impl App {
         Ok(())
     }
 
+    /// Parses the command line arguments
     fn parse_args() -> ParsedArgs {
         let args = Arguments::parse();
 
@@ -140,9 +141,12 @@ impl App {
         (path1, path2, config)
     }
 
+    /// Collects the data from the files
+    /// If the user has specified a file to read from, it will load the saved results
+    /// Otherwise it will perform a new check
     fn collect_data(&mut self, user_config: &Config) {
         if user_config.read_from_file.is_empty() {
-            self.diffs = self.perform_new_check().expect("Data check failed!")
+            self.diffs = self.check_for_diffs().expect("Data check failed!")
         } else {
             self.diffs = self
                 .file_handler
@@ -152,10 +156,9 @@ impl App {
         }
     }
 
-    fn perform_new_check(&self) -> Result<DiffCollection, Box<dyn Error>> {
-        self.check_for_diffs()
-    }
-
+    /// Checks for differences in the files
+    /// Handles both JSON and YAML files
+    /// Returns an error if no file is found
     fn check_for_diffs(&self) -> Result<DiffCollection, Box<dyn Error>> {
         if let Some(json_app) = &self.json_app {
             Ok(json_app.perform_new_check())
@@ -168,34 +171,35 @@ impl App {
         }
     }
 
+    /// Renders the tables to the terminal
     fn render_tables(&self) -> Result<(), DtfError> {
         let (key_diff, type_diff, value_diff, array_diff) = &self.diffs;
 
         let mut rendered_tables = vec![];
         if self.context.config.render_key_diffs {
             if let Some(diffs) = key_diff.as_ref().filter(|kd| !kd.is_empty()) {
-                let table = KeyTable::new(diffs, &self.context.lib_working_context);
+                let table = KeyTable::new(diffs, &self.context);
                 rendered_tables.push(table.render());
             }
         }
 
         if self.context.config.render_type_diffs {
             if let Some(diffs) = type_diff.as_ref().filter(|td| !td.is_empty()) {
-                let table = TypeTable::new(diffs, &self.context.lib_working_context);
+                let table = TypeTable::new(diffs, &self.context);
                 rendered_tables.push(table.render());
             }
         }
 
         if self.context.config.render_value_diffs {
             if let Some(diffs) = value_diff.as_ref().filter(|vd| !vd.is_empty()) {
-                let table = ValueTable::new(diffs, &self.context.lib_working_context);
+                let table = ValueTable::new(diffs, &self.context);
                 rendered_tables.push(table.render());
             }
         }
 
         if self.context.config.render_array_diffs {
             if let Some(diffs) = array_diff.as_ref().filter(|ad| !ad.is_empty()) {
-                let table = ArrayTable::new(diffs, &self.context.lib_working_context);
+                let table = ArrayTable::new(diffs, &self.context);
                 rendered_tables.push(table.render());
             }
         }
@@ -212,6 +216,7 @@ impl App {
         Ok(())
     }
 
+    /// Renders the HTML output
     fn render_html(&self) -> Result<(), DtfError> {
         let mut buf = Buffer::new();
         let mut html_renderer = HtmlRenderer::new(&self.context);

@@ -5,9 +5,13 @@ use serde_yaml::Value;
 
 use crate::dtfterminal_types::{Config, LibConfig, LibWorkingContext, WorkingContext};
 
+/// Unicode representation of a checkmark to render in the terminal
 pub const CHECKMARK: &str = "\u{2713}";
+
+/// Unicode representation of a cross to render in the terminal
 pub const MULTIPLY: &str = "\u{00D7}";
 
+/// Group array diffs by key
 pub fn group_by_key(data: &[ArrayDiff]) -> HashMap<&str, Vec<&ArrayDiff>> {
     let mut map = HashMap::new();
 
@@ -24,6 +28,8 @@ pub fn group_by_key(data: &[ArrayDiff]) -> HashMap<&str, Vec<&ArrayDiff>> {
     map
 }
 
+/// Get values to display in each column.
+/// Columns represent the files compared.
 pub fn get_display_values_by_column(
     context: &WorkingContext,
     values: &[&ArrayDiff],
@@ -37,6 +43,7 @@ pub fn get_display_values_by_column(
         .collect()
 }
 
+/// Creates a working context object based on user configuration
 pub fn create_working_context(config: &Config) -> WorkingContext {
     let file_a = WorkingFile::new(config.file_a.as_ref().unwrap().clone());
     let file_b = WorkingFile::new(config.file_b.as_ref().unwrap().clone());

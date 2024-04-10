@@ -4,8 +4,9 @@ use term_table::{
     table_cell::{Alignment, TableCell},
 };
 
-use crate::dtfterminal_types::{LibWorkingContext, TableContext, TermTable};
+use crate::dtfterminal_types::{TableContext, TermTable, WorkingContext};
 
+/// Table to display type differences in the terminal
 pub struct TypeTable<'a> {
     context: TableContext<'a>,
 }
@@ -21,7 +22,7 @@ impl<'a> TermTable<TypeDiff> for TypeTable<'a> {
     }
 
     fn add_header(&mut self) {
-        let (file_name_a_str, file_name_b_str) = self.get_file_names();
+        let (file_name_a_str, file_name_b_str) = self.context.working_context().get_file_names();
         let file_name_a = file_name_a_str.to_owned();
         let file_name_b = file_name_b_str.to_owned();
         self.context
@@ -49,17 +50,11 @@ impl<'a> TermTable<TypeDiff> for TypeTable<'a> {
 }
 
 impl<'a> TypeTable<'a> {
-    pub fn new(data: &[TypeDiff], working_context: &'a LibWorkingContext) -> TypeTable<'a> {
+    pub fn new(data: &[TypeDiff], working_context: &'a WorkingContext) -> TypeTable<'a> {
         let mut table = TypeTable {
             context: TableContext::new(working_context),
         };
         table.create_table(data);
         table
-    }
-
-    fn get_file_names(&mut self) -> (&str, &str) {
-        let file_name_a = self.context.working_context().file_a.name.as_str();
-        let file_name_b = self.context.working_context().file_b.name.as_str();
-        (file_name_a, file_name_b)
     }
 }

@@ -81,8 +81,7 @@ struct Arguments {
     array_same_order: bool,
 }
 
+/// Runs the application
 pub fn run() -> Result<(), DtfError> {
     App::new().execute()
 }
-
-// Utils

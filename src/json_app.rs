@@ -1,10 +1,12 @@
-use crate::{dtfterminal_types::{
-        DiffCollection, WorkingContext,
-    }, file_handler::FileHandler};
+use crate::{
+    dtfterminal_types::{DiffCollection, WorkingContext},
+    file_handler::FileHandler,
+};
 
-use libdtf::{core::diff_types::{
-    ArrayDiff, Checker, KeyDiff, TypeDiff, ValueDiff,
-}, json::diff_types::CheckingData};
+use libdtf::{
+    core::diff_types::{ArrayDiff, Checker, KeyDiff, TypeDiff, ValueDiff},
+    json::diff_types::CheckingData,
+};
 use serde_json::{Map, Value};
 
 /// Responsible for the main functionality of the app. Makes sure everything runs in the correct order.
@@ -28,13 +30,12 @@ impl JsonApp {
         }
     }
 
+    /// Checks for differences between the two files
     pub fn perform_new_check(&self) -> DiffCollection {
-        self.check_for_diffs(
-            &self.data1,
-            &self.data2,
-        )
+        self.check_for_diffs(&self.data1, &self.data2)
     }
 
+    /// Checks for differences between the two files
     fn check_for_diffs(
         &self,
         data1: &Map<String, Value>,

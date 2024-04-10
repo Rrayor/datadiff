@@ -41,6 +41,7 @@ struct DisplayText {
     has: &'static str,
 }
 
+/// Collection of CSS classes used in the HTML output.
 const CLASSES: Classes = Classes {
     code: "code",
     header: "header",
@@ -52,6 +53,7 @@ const CLASSES: Classes = Classes {
     multiply: "multiply",
 };
 
+/// Collection of HTML IDs used in the HTML output.
 const IDS: Ids = Ids {
     key_diff: "key_diff",
     type_diff: "type_diff",
@@ -59,6 +61,7 @@ const IDS: Ids = Ids {
     array_diff: "array_diff",
 };
 
+/// Collection of text displayed in the HTML output.
 const DISPLAY_TEXT: DisplayText = DisplayText {
     comparing: "Comparing",
     title: "Data Differences",
@@ -74,6 +77,7 @@ const DISPLAY_TEXT: DisplayText = DisplayText {
     has: "has",
 };
 
+/// The `HtmlRenderer` struct is responsible for rendering the HTML output.
 pub struct HtmlRenderer<'a> {
     context: &'a WorkingContext,
     css: String,
@@ -87,6 +91,12 @@ impl<'a> HtmlRenderer<'a> {
         }
     }
 
+    /// Initializes the HTML document.
+    /// This function writes the doctype, html, head, and body tags to the buffer.
+    /// # Arguments
+    /// * `buf``: The buffer to write the HTML document to.
+    /// * `render_options`: A tuple of booleans that determine which sections of the HTML document to render.
+    ///  The tuple is in the following order: key_diffs, type_diffs, value_diffs, array_diffs.
     pub fn init_document(
         &mut self,
         buf: &mut Buffer,
@@ -105,6 +115,7 @@ impl<'a> HtmlRenderer<'a> {
         Ok(())
     }
 
+    /// Writes the title of the HTML document.
     fn write_title(&mut self, head: &mut html_builder::Node) -> Result<(), DtfError> {
         let (file_a, file_b) = self.context.get_file_names();
         self.write_line(
@@ -116,6 +127,7 @@ impl<'a> HtmlRenderer<'a> {
         )
     }
 
+    /// Writes the meta tags of the HTML document.
     fn write_meta(&mut self, head: &mut html_builder::Node) -> Result<(), DtfError> {
         head.meta().attr("charset='utf-8'");
         head.meta()
@@ -125,6 +137,7 @@ impl<'a> HtmlRenderer<'a> {
         self.write_line(&mut head.style(), css.as_str())
     }
 
+    /// Writes the header of the HTML document including a title a small lead paragraph.
     fn write_header(&mut self, lead: &mut html_builder::Node) -> Result<(), DtfError> {
         let (file_name1, file_name2) = self.context.get_file_names();
         self.write_line(&mut lead.h1(), &format!("{}", DISPLAY_TEXT.title))?;
@@ -141,6 +154,11 @@ impl<'a> HtmlRenderer<'a> {
         )
     }
 
+    /// Writes the table of contents of the HTML document.
+    /// /// # Arguments
+    /// * `buf``: The buffer to write the HTML document to.
+    /// * `render_options`: A tuple of booleans that determine which sections of the HTML document to render.
+    ///  The tuple is in the following order: key_diffs, type_diffs, value_diffs, array_diffs.
     fn write_table_of_contents(
         &mut self,
         header: &mut html_builder::Node,
@@ -179,6 +197,7 @@ impl<'a> HtmlRenderer<'a> {
         Ok(())
     }
 
+    /// Renders the key differences table.
     pub fn render_key_diff_table(
         &mut self,
         buf: &mut Buffer,
@@ -229,6 +248,7 @@ impl<'a> HtmlRenderer<'a> {
         Ok(())
     }
 
+    /// Renders the type differences table.
     pub fn render_type_diff_table(
         &mut self,
         buf: &mut Buffer,
@@ -270,6 +290,7 @@ impl<'a> HtmlRenderer<'a> {
         Ok(())
     }
 
+    /// Renders the value differences table.
     pub fn render_value_diff_table(
         &mut self,
         buf: &mut Buffer,
@@ -311,6 +332,7 @@ impl<'a> HtmlRenderer<'a> {
         Ok(())
     }
 
+    /// Renders the array differences table.
     pub fn render_array_diff_table(
         &mut self,
         buf: &mut Buffer,
@@ -368,6 +390,9 @@ impl<'a> HtmlRenderer<'a> {
         Ok(())
     }
 
+    /// Creates a column header for the array differences table.
+    /// # Arguments
+    /// * `is_file_a`: A boolean that determines if the column header is for file A. If false, the column header is for file B.
     fn format_array_diff_table_header(&self, is_file_a: bool) -> String {
         let (file_a, file_b) = self.context.get_file_names();
         let file_name = if is_file_a { file_a } else { file_b };
@@ -375,10 +400,16 @@ impl<'a> HtmlRenderer<'a> {
         format!("{} {} {}", DISPLAY_TEXT.only, file_name, DISPLAY_TEXT.has)
     }
 
+    /// Writes a line of text to the buffer.
+    /// If an error occurs, it's mapped to a `DtfError`.
     fn write_line(&mut self, node: &mut html_builder::Node, text: &str) -> Result<(), DtfError> {
         writeln!(node, "{}", text).map_err(|e| DtfError::DiffError(format!("{}", e)))
     }
 
+    /// Creates the CSS for the HTML output.
+    /// # Arguments
+    /// * `printer_friendly`: A boolean that determines if the CSS is for a printer-friendly output.
+    /// Printer friendly output is basically a light theme with black text. And uses more widely compatible CSS formatting.
     fn create_css(printer_friendly: bool) -> String {
         if printer_friendly {
             // 0: code

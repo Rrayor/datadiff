@@ -7,14 +7,14 @@ use term_table::{row::Row, Table, TableStyle};
 pub type LibConfig = libdtf::core::diff_types::Config;
 pub type LibWorkingContext = libdtf::core::diff_types::WorkingContext;
 
-/// Stores the data required for rendering a table of the differences
+/// Stores the data required for rendering a table of the differences to the terminal
 pub struct TableContext<'a> {
-    working_context: &'a LibWorkingContext,
+    working_context: &'a WorkingContext,
     table: Table<'a>,
 }
 
 impl<'a> TableContext<'a> {
-    pub fn new(working_context: &'a LibWorkingContext) -> TableContext {
+    pub fn new(working_context: &'a WorkingContext) -> TableContext {
         let mut table = Table::new();
         table.max_column_width = 80;
         table.style = TableStyle::extended();
@@ -25,7 +25,7 @@ impl<'a> TableContext<'a> {
     }
 
     /// Returns the current context of the table
-    pub fn working_context(&self) -> &'a LibWorkingContext {
+    pub fn working_context(&self) -> &'a WorkingContext {
         self.working_context
     }
 
@@ -34,22 +34,29 @@ impl<'a> TableContext<'a> {
         self.table = table;
     }
 
-    /// Adds a row to the table
+    /// Adds a row to the terminal table
     pub fn add_row(&mut self, row: Row<'a>) {
         self.table.add_row(row);
     }
 
-    /// Returns the built table string
+    /// Returns the built terminal table string
     pub fn render(&self) -> String {
         self.table.render()
     }
 }
 
-/// Gives tables the required functionality
+/// Gives terminal tables the required functionality
 pub trait TermTable<T: Diff> {
+    /// Get the table as a string optimized for terminal output
     fn render(&self) -> String;
+
+    /// Create the table with the given data
     fn create_table(&mut self, data: &[T]);
+
+    /// Add the header to the table
     fn add_header(&mut self);
+
+    /// Add the rows to the table
     fn add_rows(&mut self, data: &[T]);
 }
 
@@ -279,6 +286,7 @@ impl WorkingContext {
         }
     }
 
+    /// Get the file names of the two files being compared
     pub fn get_file_names(&self) -> (&str, &str) {
         let file_name_a = self.lib_working_context.file_a.name.as_str();
         let file_name_b = self.lib_working_context.file_b.name.as_str();
