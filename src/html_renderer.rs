@@ -644,7 +644,7 @@ impl<'a> HtmlRenderer<'a> {
         }}
         
         .{} li a:hover {{
-            color: #787878;        
+            color: #787878;
         }}
         
         .{} {{
@@ -710,5 +710,281 @@ impl<'a> HtmlRenderer<'a> {
                 CLASSES.multiply,          // 19
             )
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::dtfterminal_types::ConfigBuilder;
+
+    use super::*;
+
+    #[test]
+    fn test_format_array_diff_table_header() {
+        let working_context = get_working_context();
+        let renderer = HtmlRenderer::new(&working_context);
+        assert_eq!(
+            renderer.format_array_diff_table_header(true),
+            "Only FileA has"
+        );
+        assert_eq!(
+            renderer.format_array_diff_table_header(false),
+            "Only FileB has"
+        );
+    }
+
+    #[test]
+    fn test_write_line() {
+        let working_context = get_working_context();
+        let mut renderer = HtmlRenderer::new(&working_context);
+        let expected = "<html>\n <body>\nHello, World!\n </body>\n</html>\n";
+        let mut buf = html_builder::Buffer::new();
+        let mut html = buf.html();
+        let mut node = html.body();
+        renderer.write_line(&mut node, "Hello, World!").unwrap();
+        assert_eq!(buf.finish(), expected);
+    }
+
+    #[test]
+    fn test_create_css() {
+        assert_eq!(
+            HtmlRenderer::create_css(true),
+            r#"* {
+            font-family: Arial, Helvetica, sans-serif;
+            box-sizing: border-box;
+        }
+        
+        body {
+            padding: 1em;
+            font-size: 14px;
+            background-color: #fff;
+            color: #000;
+        }
+        
+        h1, h2 {
+            width: 100%;
+            text-align: left;
+        }
+        
+        h2 {
+            margin-top: 2em;
+        }
+        
+        .code {
+            font-family: "Lucida Console", "Courier New", monospace;
+        }
+        
+        .header .lead p .code {
+            font-weight: bold;
+            background-color: rgba(100, 100, 100, 0.4);
+            padding: 0.2em;
+            border-radius: 2px;
+        }
+        
+        ul.table-of-contents {
+            max-width: 30%;
+            margin-top: 2em;
+            margin-bottom: 2em;
+            padding: 1em;
+            list-style-type: none;
+            border: 1px solid #000;
+        }
+        
+        .table-of-contents h2 {
+            margin-top: 0;
+        }
+        
+        .table-of-contents li {
+            width: 100%;
+            padding: 0.5em 0;
+            font-size: 1.2em;
+        }
+        
+        .table-of-contents li a {
+            color: #000;
+            text-decoration: underline;
+        }
+        
+        .table-of-contents li a:hover {
+            color: #0000ff;
+        }
+        
+        .diff-table {
+            margin: auto;
+            margin-top: 2em;
+            text-align: center;
+            width: 100%;
+            color: #000;
+        }
+        
+        .diff-table th, .diff-table td{
+            padding: 1.2em;
+            text-align: left;
+        }
+        
+        .diff-table th {
+            background-color: rgba(100, 100, 100, 0.3);
+        }
+        
+        .diff-table tr:nth-child(odd) {
+            background-color: rgba(100, 100, 100, 0.1);
+        }
+        
+        .diff-table tr:nth-child(even) {
+            background-color: rgba(100, 100, 100, 0.2);
+        }
+        
+        .checkmark::before {
+            visibility: visible;
+            content: "\2713";
+            font-weight: bold;
+            font-size: 1.5em;
+            color: #5aa25a;
+        }
+
+        .multiply::before {
+            visibility: visible;
+            content: "\00D7";
+            font-weight: bold;
+            font-size: 1.5em;
+            color: #ff0000;
+        }"#
+        );
+        assert_eq!(
+            HtmlRenderer::create_css(false),
+            r#"* {
+            font-family: Arial, Helvetica, sans-serif;
+            box-sizing: border-box;
+        }
+        
+        body {
+            padding: 1em;
+            font-size: 14px;
+            background-color: #0a0b0b;
+            color: #fff;
+        }
+        
+        h1, h2 {
+            width: fit-content;
+            width: -moz-fit-content;
+            text-align: left;
+            background: linear-gradient(to right, #8e2de2, #4a00e0);
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        h2 {
+            margin-top: 2em;
+        }
+        
+        .code {
+            font-family: "Lucida Console", "Courier New", monospace;
+        }
+        
+        .header {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+        }
+        
+        .header .lead {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header .lead p .code {
+            font-weight: bold;
+            background-color: rgba(100, 100, 100, 0.4);
+            padding: 0.2em;
+            border-radius: 2px;
+        }
+        
+        ul.table-of-contents {
+            width: fit-content;
+            width: -moz-fit-content;
+            margin-top: 2em;
+            margin-bottom: 2em;
+            padding: 1em;
+            background-color: rgba(100, 100, 100, 0.2);
+            border-radius: 10px;
+            list-style-type: none;
+        }
+        
+        .table-of-contents h2 {
+            margin-top: 0;
+        }
+        
+        .table-of-contents li {
+            width: 100%;
+            padding: 0.5em 0;
+            font-size: 1.2em;
+        }
+        
+        .table-of-contents li a {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+        
+        .table-of-contents li a:hover {
+            color: #787878;
+        }
+        
+        .diff-table {
+            margin: auto;
+            margin-top: 2em;
+            text-align: center;
+            width: 100%;
+            color: #ffffff;
+            border-radius: 10px;
+        }
+        
+        .diff-table th, .diff-table td{
+            padding: 1.2em;
+            text-align: left;
+        }
+        
+        .diff-table th {
+            background-color: rgba(100, 100, 100, 0.3);
+        }
+        
+        .diff-table tr:nth-child(odd) {
+            background-color: rgba(100, 100, 100, 0.1);
+        }
+        
+        .diff-table tr:nth-child(even) {
+            background-color: rgba(100, 100, 100, 0.2);
+        }
+        
+        .checkmark::before {
+            visibility: visible;
+            content: "\2713";
+            font-weight: bold;
+            font-size: 1.5em;
+            color:  #00ff00;
+        }
+
+        .multiply::before {
+            visibility: visible;
+            content: "\00D7";
+            font-weight: bold;
+            font-size: 1.5em;
+            color: #ff0000;
+        }"#
+        );
+    }
+
+    fn get_working_context() -> WorkingContext {
+        let working_file_a = libdtf::core::diff_types::WorkingFile::new("FileA.yaml".to_string());
+        let working_file_b = libdtf::core::diff_types::WorkingFile::new("FileB.yaml".to_string());
+        let lib_working_context = libdtf::core::diff_types::WorkingContext::new(
+            working_file_a,
+            working_file_b,
+            libdtf::core::diff_types::Config {
+                array_same_order: false,
+            },
+        );
+        let working_context =
+            WorkingContext::new(lib_working_context, ConfigBuilder::new().build());
+        working_context
     }
 }
