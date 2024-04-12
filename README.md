@@ -23,6 +23,9 @@ Built on [libdtf](https://github.com/Rrayor/libdtf)
     - [Type difference](#type-difference)
     - [Value difference](#value-difference)
     - [Array difference](#array-difference)
+  - [Browser view (`-b` option) **Not released yet!**](#browser-view--b-option-not-released-yet)
+  - [Printer friendly (`-p` option)](#printer-friendly--p-option)
+  - [No browser (`-n` option)](#no-browser--n-option)
   - [Different behaviours from the same options](#different-behaviours-from-the-same-options)
     - [Checking data sets (`-c` option is used)](#checking-data-sets--c-option-is-used)
     - [Loading previous check from saved file (`-r` option is used)](#loading-previous-check-from-saved-file--r-option-is-used)
@@ -39,10 +42,10 @@ Built on [libdtf](https://github.com/Rrayor/libdtf)
 
 # Supported formats
 
-| Format | Extension | Supported?                                |
-| ------ | --------- | ----------------------------------------- |
-| JSON   | .json     | <span style="color:green">Yes</span>      |
-| YAML   | .yml, .yaml      | <span style="color:yellow">Included on main branch (BETA release shortly)</span> |
+| Format | Extension   | Supported?                           |
+| ------ | ----------- | ------------------------------------ |
+| JSON   | .json       | <span style="color:green">Yes</span> |
+| YAML   | .yml, .yaml | <span style="color:green">Yes</span> |
 
 # Disclaimer
 
@@ -119,7 +122,7 @@ For example the following command displays all the differences between `json1.js
 $ dtf -c ./json1.json ./json2 -ktva
 ```
 
-You can also chose to write the differences into a file with the option `-w` followed by the file path to save to. It will be saved as `json` too, although the file extension can differ:
+You can also choose to write the differences into a file with the option `-w` followed by the file path to save to. It will be saved as `json` too, although the file extension can differ:
 
 ```shell
 $ dtf -c path/to/json1 path/to/json2 <OTHER OPTIONS> -w path/to/save-to
@@ -133,20 +136,29 @@ To read in the saved file:
 $ dtf -r path/to/read-from <OTHER OPTIONS>
 ```
 
+To produce an HTML file instead and open it in the browser when the program has finished running, you can use [the `-b` flag](#browser-view--b-option). **Not released yet!**
+
+```shell
+$ dtf -c file1.json file2.json -ktva -b diffs.html
+```
+
 ### All Options
 
-| Option | Description                                                                              |
-| ------ | ---------------------------------------------------------------------------------------- |
-| `-h`   | Help - Lists all the options and general usage info                                      |
-| `-V`   | Get the version of DataDiffer currently in use                                           |
-| `-c`   | Check the 2 data files that follow **separated by space**                                |
-| `-r`   | Read saved data from file that follows                                                   |
-| `-w`   | Write saved data to file that follows                                                    |
-| `-k`   | Check for/list Key differences if any                                                    |
-| `-t`   | Check for/list Type differences if any                                                   |
-| `-v`   | Check for/list Value differences if any                                                  |
-| `-a`   | Check for/list Array differences if any (Has no effect if used with `-o`)                |
-| `-o`   | Arrays should be in the same order. Works only if the arrays are of the same length too! |
+| Option | Description                                                                                     |
+| ------ | ----------------------------------------------------------------------------------------------- |
+| `-h`   | Help - Lists all the options and general usage info                                             |
+| `-V`   | Get the version of DataDiffer currently in use                                                  |
+| `-c`   | Check the 2 data files that follow **separated by space**                                       |
+| `-r`   | Read saved data from file that follows                                                          |
+| `-w`   | Write saved data to file that follows                                                           |
+| `-k`   | Check for/list Key differences if any                                                           |
+| `-t`   | Check for/list Type differences if any                                                          |
+| `-v`   | Check for/list Value differences if any                                                         |
+| `-a`   | Check for/list Array differences if any (Has no effect if used with `-o`)                       |
+| `-o`   | Arrays should be in the same order. Works only if the arrays are of the same length too!        |
+| `-b`   | Browser view: Save the output to an html file with the name that follows **seperated by space** |
+| `-p`   | A light theme with simpler layout for the browser (Has no effect if used without `-b`)          |
+| `-n`   | No browser: Will produce the html but won't open the file                                       |
 
 The various options can behave a bit differently if combined in specific ways. We'll go through all the notable phrases and differences next.
 
@@ -175,6 +187,32 @@ Only works if arrays are not supposed to be in the same order ( the `-o` option 
 
 Tells you if a value is present in an array that's missing from the array with the same key in the other data set.
 ![Alt text](readme_images/array_diffs.jpg)
+
+## Browser view (`-b` option) **Not released yet!**
+
+Will write to an html file instead of displaying the results in a terminal. The name of the file should be specified after the flag separated by a space.
+
+By default the produced file will open using the system default browser after the program has finished running. This can be turned off by using the [`-n` flag](#no-browser--n-option)
+
+```shell
+$ dtf -c file1.json file2.json -ktva -b diffs.html
+```
+
+![Alt text](readme_images/browser_view_default.jpeg)
+
+## Printer friendly (`-p` option)
+
+Has no effect without the `-b` flag.
+
+It will provide a light themed html output with a simpler layout.
+
+![Alt text](readme_images/browser_view_printer_friendly.jpeg)
+
+## No browser (`-n` option)
+
+Has no effect without the `-b` flag.
+
+It will prevent the produced html file from opening when the program has finished running.
 
 ## Different behaviours from the same options
 
@@ -249,7 +287,7 @@ And some points regarding code quality:
 * Always write Rustdoc for your structs and public methods/functions.
 * If you can't simplify your code enough, write down your reasoning in comments.
 * Don't over-comment.  Good structure and naming is better than good comments every time!
-* If you see a opportunity for improvement, take it, don't leave it alone!
+* If you see an opportunity for improvement, take it, don't leave it alone!
 
 ## Be reasonable
 
