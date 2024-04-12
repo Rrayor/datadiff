@@ -73,7 +73,7 @@ However there are a couple of dependencies used, which we don't have control ove
 # Installation
 Currently there is no classical installation. The app is distributed as portable binaries. There are 2 main ways to get the app working on your system. They overlap after a while, but I put the overlapping parts in both instruction sets.
 
-**IMPORTANT:** Unfortunately I didn't have the opportunity to test on every platform, especially MacOS 😒 I tested on Windows 11 and Fedora 38.
+**IMPORTANT:** Unfortunately I didn't have the opportunity to test on every platform, especially MacOS 😒 I tested on Windows 11 and Ubuntu 22.04.
 
 ## Build from source
 You can clone the repo and build the app for yourself. This requires some experience with building applications however, but the process shouldn't be too hard.
