@@ -85,3 +85,38 @@ impl<'a> KeyTable<'a> {
         ]));
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::dtfterminal_types::ConfigBuilder;
+
+    use super::*;
+
+    #[test]
+    fn test_check_has() {
+        let working_context = get_working_context();
+        let key_diff = KeyDiff {
+            key: "key1".to_owned(),
+            has: "file_a.json".to_owned(),
+            misses: "file_b.json".to_owned(),
+        };
+        let key_table = KeyTable::new(&[], &working_context);
+        let result = key_table.check_has("file_a.json", &key_diff);
+        assert_eq!(result, CHECKMARK.color(Color::Green));
+    }
+
+    fn get_working_context() -> WorkingContext {
+        let working_file_a = libdtf::core::diff_types::WorkingFile::new("file_a.json".to_string());
+        let working_file_b = libdtf::core::diff_types::WorkingFile::new("file_b.json".to_string());
+        let lib_working_context = libdtf::core::diff_types::WorkingContext::new(
+            working_file_a,
+            working_file_b,
+            libdtf::core::diff_types::Config {
+                array_same_order: false,
+            },
+        );
+        let working_context =
+            WorkingContext::new(lib_working_context, ConfigBuilder::new().build());
+        working_context
+    }
+}
