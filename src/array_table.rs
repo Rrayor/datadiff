@@ -40,12 +40,12 @@ impl<'a> TermTable<ArrayDiff> for ArrayTable<'a> {
 
         for (key, values) in map {
             let display_values1: Vec<String> = get_display_values_by_column(
-                &self.context.working_context(),
+                self.context.working_context(),
                 &values,
                 ArrayDiffDesc::AHas,
             );
             let display_values2 = get_display_values_by_column(
-                &self.context.working_context(),
+                self.context.working_context(),
                 &values,
                 ArrayDiffDesc::BHas,
             );

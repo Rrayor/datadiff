@@ -140,17 +140,17 @@ impl<'a> HtmlRenderer<'a> {
     /// Writes the header of the HTML document including a title a small lead paragraph.
     fn write_header(&mut self, lead: &mut html_builder::Node) -> Result<(), DtfError> {
         let (file_name1, file_name2) = self.context.get_file_names();
-        self.write_line(&mut lead.h1(), &format!("{}", DISPLAY_TEXT.title))?;
+        self.write_line(&mut lead.h1(), DISPLAY_TEXT.title)?;
         let mut lead_p = lead.p();
         self.write_line(&mut lead_p, DISPLAY_TEXT.lead)?;
         self.write_line(
             &mut lead_p.span().attr(&format!("class='{}'", CLASSES.code)),
-            &file_name1,
+            file_name1,
         )?;
         self.write_line(&mut lead_p, DISPLAY_TEXT.against)?;
         self.write_line(
             &mut lead_p.span().attr(&format!("class='{}'", CLASSES.code)),
-            &file_name2,
+            file_name2,
         )
     }
 
@@ -336,7 +336,7 @@ impl<'a> HtmlRenderer<'a> {
     pub fn render_array_diff_table(
         &mut self,
         buf: &mut Buffer,
-        diffs: &Vec<ArrayDiff>,
+        diffs: &[ArrayDiff],
     ) -> Result<(), DtfError> {
         let mut html = buf.html();
         let mut body = html.body();
@@ -367,8 +367,8 @@ impl<'a> HtmlRenderer<'a> {
 
         let mut tbody = table.tbody();
         for (key, values) in map {
-            let val1 = get_display_values_by_column(&self.context, &values, ArrayDiffDesc::AHas);
-            let val2 = get_display_values_by_column(&self.context, &values, ArrayDiffDesc::BHas);
+            let val1 = get_display_values_by_column(self.context, &values, ArrayDiffDesc::AHas);
+            let val2 = get_display_values_by_column(self.context, &values, ArrayDiffDesc::BHas);
 
             let mut tr = tbody.tr();
             self.write_line(
@@ -376,7 +376,7 @@ impl<'a> HtmlRenderer<'a> {
                     .th()
                     .attr(&format!("class='{}'", CLASSES.code))
                     .attr("scope='row'"),
-                &key.to_string(),
+                key,
             )?;
             self.write_line(
                 &mut tr.td().pre().attr(&format!("class='{}'", CLASSES.original)),
@@ -725,11 +725,11 @@ mod tests {
         let renderer = HtmlRenderer::new(&working_context);
         assert_eq!(
             renderer.format_array_diff_table_header(true),
-            "Only FileA has"
+            "Only FileA.yaml has"
         );
         assert_eq!(
             renderer.format_array_diff_table_header(false),
-            "Only FileB has"
+            "Only FileB.yaml has"
         );
     }
 

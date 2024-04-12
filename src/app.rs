@@ -85,7 +85,7 @@ impl App {
             "Checking for differences...\n".into(),
         );
 
-        if let Some(_) = self.context.config.write_to_file {
+        if self.context.config.write_to_file.is_some() {
             self.file_handler
                 .write_to_file(self.diffs.clone())
                 .map_err(|e| DtfError::GeneralError(Box::new(e)))?;
