@@ -144,21 +144,21 @@ $ dtf -c file1.json file2.json -ktva -b diffs.html
 
 ### All Options
 
-| Option | Description                                                                                     |
-| ------ | ----------------------------------------------------------------------------------------------- |
-| `-h`   | Help - Lists all the options and general usage info                                             |
-| `-V`   | Get the version of DataDiffer currently in use                                                  |
-| `-c`   | Check the 2 data files that follow **separated by space**                                       |
-| `-r`   | Read saved data from file that follows                                                          |
-| `-w`   | Write saved data to file that follows                                                           |
-| `-k`   | Check for/list Key differences if any                                                           |
-| `-t`   | Check for/list Type differences if any                                                          |
-| `-v`   | Check for/list Value differences if any                                                         |
-| `-a`   | Check for/list Array differences if any (Has no effect if used with `-o`)                       |
-| `-o`   | Arrays should be in the same order. Works only if the arrays are of the same length too!        |
-| `-b`   | Browser view: Save the output to an html file with the name that follows **seperated by space** |
-| `-p`   | A light theme with simpler layout for the browser (Has no effect if used without `-b`)          |
-| `-n`   | No browser: Will produce the html but won't open the file                                       |
+| Option | Description                                                                                                                       |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `-h`   | Help - Lists all the options and general usage info                                                                               |
+| `-V`   | Get the version of DataDiffer currently in use                                                                                    |
+| `-c`   | Check the 2 data files that follow **separated by space**                                                                         |
+| `-r`   | Read saved data from file that follows                                                                                            |
+| `-w`   | Write saved data to file that follows                                                                                             |
+| `-k`   | Check for/list Key differences if any                                                                                             |
+| `-t`   | Check for/list Type differences if any                                                                                            |
+| `-v`   | Check for/list Value differences if any                                                                                           |
+| `-a`   | Check for/list Array differences if any (Has no effect if used with `-o`)                                                         |
+| `-o`   | Arrays should be in the same order. Works only if the arrays are of the same length too!                                          |
+| `-b`   | Browser view: Save the output to an html file with the name that follows **seperated by space** (Has no effect if used with `-w`) |
+| `-p`   | A light theme with simpler layout for the browser (Has no effect if used without `-b`)                                            |
+| `-n`   | No browser: Will produce the html but won't open the file                                                                         |
 
 The various options can behave a bit differently if combined in specific ways. We'll go through all the notable phrases and differences next.
 
@@ -189,6 +189,8 @@ Tells you if a value is present in an array that's missing from the array with t
 ![Alt text](readme_images/array_diffs.jpg)
 
 ## Browser view (`-b` option) **Not released yet!**
+
+Has no effect if used with `-w`
 
 Will write to an html file instead of displaying the results in a terminal. The name of the file should be specified after the flag separated by a space.
 
