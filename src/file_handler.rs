@@ -124,6 +124,9 @@ impl FileHandler {
                 .file_a(Some(saved_config.file_a.clone()))
                 .file_b(Some(saved_config.file_b.clone()))
                 .array_same_order(saved_config.array_same_order)
+                .browser_view(user_config.browser_view.clone())
+                .printer_friendly(user_config.printer_friendly)
+                .no_browser_show(user_config.no_browser_show)
                 .build(),
         )
     }

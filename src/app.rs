@@ -61,7 +61,7 @@ impl App {
             _ => None,
         };
 
-        if json_app.is_none() && yaml_app.is_none() {
+        if App::are_diffs_empty(&diffs) && json_app.is_none() && yaml_app.is_none() {
             panic!("No valid files to check!");
         }
 
@@ -283,5 +283,9 @@ impl App {
             .map_err(|e| DtfError::DiffError(format!("Could not create file: {}", e)))?;
 
         write!(file, "{}", buf.finish()).map_err(|e| DtfError::DiffError(format!("{}", e)))
+    }
+
+    fn are_diffs_empty(diffs: &DiffCollection) -> bool {
+        diffs.0.is_none() && diffs.1.is_none() && diffs.2.is_none() && diffs.3.is_none()
     }
 }
