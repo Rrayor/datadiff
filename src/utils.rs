@@ -85,3 +85,110 @@ pub fn prettify_yaml_str(yaml_str: &str) -> String {
 pub fn is_yaml_file(path: &str) -> bool {
     path.ends_with(".yaml") || path.ends_with(".yml")
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::dtfterminal_types::ConfigBuilder;
+
+    use super::*;
+
+    #[test]
+    fn test_get_display_values_by_column() {
+        let context = WorkingContext::new(
+            LibWorkingContext::new(
+                WorkingFile::new("file_a.txt".to_owned()),
+                WorkingFile::new("file_b.txt".to_owned()),
+                LibConfig::new(true),
+            ),
+            ConfigBuilder::new().build(),
+        );
+
+        let diff1 = ArrayDiff {
+            descriptor: ArrayDiffDesc::AHas,
+            key: "key1".to_owned(),
+            value: "value1".to_owned(),
+        };
+        let diff2 = ArrayDiff {
+            descriptor: ArrayDiffDesc::AHas,
+            key: "key2".to_owned(),
+            value: "value2".to_owned(),
+        };
+        let diff3 = ArrayDiff {
+            descriptor: ArrayDiffDesc::AHas,
+            key: "key3".to_owned(),
+            value: "value3".to_owned(),
+        };
+        let values = vec![&diff1, &diff2, &diff3];
+
+        let diff_desc = ArrayDiffDesc::AHas;
+
+        let display_values = get_display_values_by_column(&context, &values, diff_desc);
+
+        assert_eq!(display_values, vec!["value1", "value2", "value3"]);
+    }
+
+    #[test]
+    fn test_create_working_context() {
+        let config = ConfigBuilder::new()
+            .file_a(Some("file_a.txt".to_owned()))
+            .file_b(Some("file_b.txt".to_owned()))
+            .array_same_order(true)
+            .build();
+
+        let working_context = create_working_context(&config);
+
+        let (file_a_in_context, file_b_in_context) = working_context.get_file_names();
+        assert_eq!(file_a_in_context, "file_a.txt");
+        assert_eq!(file_b_in_context, "file_b.txt");
+        assert_eq!(
+            working_context.lib_working_context.config.array_same_order,
+            true
+        );
+    }
+
+    #[test]
+    fn test_is_yaml_file() {
+        let yaml_file = "file.yaml";
+        let yml_file = "file.yml";
+        let txt_file = "file.txt";
+        let json_file = "file.json";
+
+        assert_eq!(is_yaml_file(yaml_file), true);
+        assert_eq!(is_yaml_file(yml_file), true);
+        assert_eq!(is_yaml_file(txt_file), false);
+        assert_eq!(is_yaml_file(json_file), false);
+    }
+
+    #[test]
+    fn test_group_by_key() {
+        let data = vec![
+            ArrayDiff {
+                descriptor: ArrayDiffDesc::AHas,
+                key: "key1".to_owned(),
+                value: "value1".to_owned(),
+            },
+            ArrayDiff {
+                descriptor: ArrayDiffDesc::AHas,
+                key: "key2".to_owned(),
+                value: "value2".to_owned(),
+            },
+            ArrayDiff {
+                descriptor: ArrayDiffDesc::AHas,
+                key: "key2".to_owned(),
+                value: "value3".to_owned(),
+            },
+            ArrayDiff {
+                descriptor: ArrayDiffDesc::AHas,
+                key: "key3".to_owned(),
+                value: "value4".to_owned(),
+            },
+        ];
+
+        let grouped_data = group_by_key(&data);
+
+        assert_eq!(grouped_data.len(), 3);
+        assert_eq!(grouped_data.get("key1"), Some(&vec![&data[0]]));
+        assert_eq!(grouped_data.get("key2"), Some(&vec![&data[1], &data[2]]));
+        assert_eq!(grouped_data.get("key3"), Some(&vec![&data[3]]));
+    }
+}
