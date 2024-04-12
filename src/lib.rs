@@ -1,17 +1,18 @@
 use app::App;
 use clap::{ArgGroup, Parser};
 use dtfterminal_types::DtfError;
-use serde_json::Value;
 
 mod app;
-mod json_app;
-mod yaml_app;
 mod array_table;
 pub mod dtfterminal_types;
 mod file_handler;
+mod html_renderer;
+mod json_app;
 mod key_table;
 mod type_table;
+mod utils;
 mod value_table;
+mod yaml_app;
 
 /// Command line arguments are handled here by clap
 #[derive(Default, Parser, Debug)]
@@ -28,6 +29,13 @@ mod value_table;
         ArgGroup::new("file-options")
         .required(true)
         .args(&["check_files", "read_from_file"])
+    ),
+    group(
+        ArgGroup::new("browser-options")
+        .required(false)
+        .requires("browser_view")
+        .multiple(true)
+        .args(&["printer_friendly", "no_browser_show"])
     )
 )]
 /// Find the difference in your data structures
@@ -42,6 +50,18 @@ struct Arguments {
     /// Output to json file instead of rendering tables in the terminal
     #[clap(short)]
     write_to_file: Option<String>,
+
+    /// Browser View: Output to an HTML file instead of rendering tables in the terminal
+    #[clap(short)]
+    browser_view: Option<String>,
+
+    /// Printer friendly HTML output
+    #[clap(short, default_value_t = false)]
+    printer_friendly: bool,
+
+    /// Don't show HTML in browser after creation
+    #[clap(short, default_value_t = false)]
+    no_browser_show: bool,
 
     /// Check for Key differences
     #[clap(short, default_value_t = false)]
@@ -61,40 +81,7 @@ struct Arguments {
     array_same_order: bool,
 }
 
+/// Runs the application
 pub fn run() -> Result<(), DtfError> {
     App::new().execute()
-}
-
-// Utils
-
-/// Formats data based on file type
-fn prettify_data(file_names: (&str, &str), data: &str) -> String {
-    // at this point we can be sure, both file names have the same file type, so we can just check the first one
-    let (file1, _) = file_names;
-    if is_yaml_file(file1) {
-        return prettify_yaml_str(data);
-    }
-
-    prettify_json_str(data)
-}
-
-/// Formats JSON strings
-fn prettify_json_str(json_str: &str) -> String {
-    match serde_json::from_str::<Value>(json_str) {
-        Ok(json_value) => serde_json::to_string_pretty(&json_value).unwrap_or(json_str.to_owned()),
-        Err(_) => json_str.to_owned(),
-    }
-}
-
-/// Formats YAML strings
-fn prettify_yaml_str(yaml_str: &str) -> String {
-    match serde_yaml::from_str::<Value>(yaml_str) {
-        Ok(yaml_value) => serde_yaml::to_string(&yaml_value).unwrap_or(yaml_str.to_owned()),
-        Err(_) => yaml_str.to_owned(),
-    }
-}
-
-/// Checks if a file is a YAML file
-fn is_yaml_file(path: &str) -> bool {
-    path.ends_with(".yaml") || path.ends_with(".yml")
 }

@@ -1,15 +1,16 @@
-use std::collections::HashMap;
-
 use libdtf::core::diff_types::{ArrayDiff, ArrayDiffDesc};
 use term_table::{
     row::Row,
     table_cell::{Alignment, TableCell},
 };
 
+use crate::utils::{get_display_values_by_column, group_by_key};
 use crate::{
-    dtfterminal_types::{LibWorkingContext, TableContext, TermTable}, is_yaml_file, prettify_data
+    dtfterminal_types::{TableContext, TermTable, WorkingContext},
+    utils::is_yaml_file,
 };
 
+/// Table to display array differences in the terminal
 pub struct ArrayTable<'a> {
     context: TableContext<'a>,
 }
@@ -25,7 +26,7 @@ impl<'a> TermTable<ArrayDiff> for ArrayTable<'a> {
     }
 
     fn add_header(&mut self) {
-        let (file_name_a_str, file_name_b_str) = self.get_file_names();
+        let (file_name_a_str, file_name_b_str) = self.context.working_context().get_file_names();
         let file_name_a = file_name_a_str.to_owned();
         let file_name_b = file_name_b_str.to_owned();
         self.add_title_row();
@@ -33,18 +34,21 @@ impl<'a> TermTable<ArrayDiff> for ArrayTable<'a> {
     }
 
     fn add_rows(&mut self, data: &[ArrayDiff]) {
-        let map = ArrayTable::group_by_key(data);
-        let join_str = if is_yaml_file(self.get_file_names().0) {
-            ""
-        } else {
-            ",\n"
-        };
+        let map = group_by_key(data);
+        let file_name_a = self.context.working_context().get_file_names().0;
+        let join_str = if is_yaml_file(file_name_a) { "" } else { ",\n" };
 
         for (key, values) in map {
-            let display_values1: Vec<String> =
-                self.get_display_values_by_column(&values, ArrayDiffDesc::AHas);
-            let display_values2 =
-                self.get_display_values_by_column(&values, ArrayDiffDesc::BHas);
+            let display_values1: Vec<String> = get_display_values_by_column(
+                self.context.working_context(),
+                &values,
+                ArrayDiffDesc::AHas,
+            );
+            let display_values2 = get_display_values_by_column(
+                self.context.working_context(),
+                &values,
+                ArrayDiffDesc::BHas,
+            );
 
             self.context.add_row(Row::new(vec![
                 TableCell::new(key),
@@ -56,7 +60,7 @@ impl<'a> TermTable<ArrayDiff> for ArrayTable<'a> {
 }
 
 impl<'a> ArrayTable<'a> {
-    pub fn new(data: &[ArrayDiff], working_context: &'a LibWorkingContext) -> ArrayTable<'a> {
+    pub fn new(data: &[ArrayDiff], working_context: &'a WorkingContext) -> ArrayTable<'a> {
         let mut table = ArrayTable {
             context: TableContext::new(working_context),
         };
@@ -64,41 +68,7 @@ impl<'a> ArrayTable<'a> {
         table
     }
 
-    fn group_by_key(data: &[ArrayDiff]) -> HashMap<&str, Vec<&ArrayDiff>> {
-        let mut map = HashMap::new();
-
-        for ad in data {
-            let key = ad.key.as_str();
-
-            if !map.contains_key(key) {
-                map.insert(key, vec![]);
-            }
-
-            map.get_mut(key).unwrap().push(ad);
-        }
-
-        map
-    }
-
-    fn get_display_values_by_column(
-        &self,
-        values: &[&ArrayDiff],
-        diff_desc: ArrayDiffDesc,
-    ) -> Vec<String> {
-        let file_names = self.get_file_names();
-        values
-            .iter()
-            .filter(|ad| ad.descriptor == diff_desc)
-            .map(|ad| prettify_data(file_names, ad.value.as_str()))
-            .collect()
-    }
-
-    fn get_file_names(&self) -> (&str, &str) {
-        let file_name_a = self.context.working_context().file_a.name.as_str();
-        let file_name_b = self.context.working_context().file_b.name.as_str();
-        (file_name_a, file_name_b)
-    }
-
+    /// Adds the header row to the table
     fn add_title_row(&mut self) {
         self.context
             .add_row(Row::new(vec![TableCell::new_with_alignment(
@@ -108,6 +78,7 @@ impl<'a> ArrayTable<'a> {
             )]));
     }
 
+    /// Adds the file names row to the table
     fn add_file_names_row(&mut self, file_name_a: String, file_name_b: String) {
         self.context.add_row(Row::new(vec![
             TableCell::new("Key"),

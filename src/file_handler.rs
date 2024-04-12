@@ -7,6 +7,7 @@ use crate::dtfterminal_types::{
     SavedContext, WorkingContext,
 };
 
+/// Responsible for reading and writing files
 pub struct FileHandler {
     user_config: Config,
     saved_config: Option<SavedConfig>,
@@ -20,18 +21,19 @@ impl FileHandler {
         }
     }
 
+    /// Reads a JSON file and returns a map of the data
     pub fn read_json_file(
         file_path: &str,
     ) -> Result<serde_json::Map<String, serde_json::Value>, serde_json::Error> {
         read_json_file(file_path)
     }
 
-    pub fn read_yaml_file(
-        file_path: &str,
-    ) -> Result<serde_yaml::Mapping, serde_yaml::Error> {
+    /// Reads a YAML file and returns a map of the data
+    pub fn read_yaml_file(file_path: &str) -> Result<serde_yaml::Mapping, serde_yaml::Error> {
         read_yaml_file(file_path)
     }
 
+    /// Writes the diff results to a JSON file
     pub fn write_to_file(&self, diffs: DiffCollection) -> Result<(), DtfError> {
         let (key_diff_option, type_diff_option, value_diff_option, array_diff_option) = diffs;
         let key_diff = key_diff_option.unwrap_or_default();
@@ -68,6 +70,7 @@ impl FileHandler {
         }
     }
 
+    /// Loads the saved results from a JSON file
     pub fn load_saved_results(
         &mut self,
     ) -> Result<(DiffCollection, WorkingContext), Box<dyn Error>> {
@@ -89,6 +92,7 @@ impl FileHandler {
         Ok((diff_collection, working_context))
     }
 
+    /// Builds a working context object based on the loaded data
     fn build_working_context_from_loaded_data(&self) -> WorkingContext {
         if self.saved_config.is_none() {
             panic!("Saved data is corrupted! Config options not present!")
@@ -120,10 +124,14 @@ impl FileHandler {
                 .file_a(Some(saved_config.file_a.clone()))
                 .file_b(Some(saved_config.file_b.clone()))
                 .array_same_order(saved_config.array_same_order)
+                .browser_view(user_config.browser_view.clone())
+                .printer_friendly(user_config.printer_friendly)
+                .no_browser_show(user_config.no_browser_show)
                 .build(),
         )
     }
 
+    /// Reads the saved results from a JSON file
     fn read_from_file(&self, file_path: &str) -> serde_json::Result<SavedContext> {
         let file =
             File::open(file_path).unwrap_or_else(|_| panic!("Could not open file {}", file_path));

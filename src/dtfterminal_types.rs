@@ -7,14 +7,14 @@ use term_table::{row::Row, Table, TableStyle};
 pub type LibConfig = libdtf::core::diff_types::Config;
 pub type LibWorkingContext = libdtf::core::diff_types::WorkingContext;
 
-/// Stores the data required for rendering a table of the differences
+/// Stores the data required for rendering a table of the differences to the terminal
 pub struct TableContext<'a> {
-    working_context: &'a LibWorkingContext,
+    working_context: &'a WorkingContext,
     table: Table<'a>,
 }
 
 impl<'a> TableContext<'a> {
-    pub fn new(working_context: &'a LibWorkingContext) -> TableContext {
+    pub fn new(working_context: &'a WorkingContext) -> TableContext {
         let mut table = Table::new();
         table.max_column_width = 80;
         table.style = TableStyle::extended();
@@ -25,7 +25,7 @@ impl<'a> TableContext<'a> {
     }
 
     /// Returns the current context of the table
-    pub fn working_context(&self) -> &'a LibWorkingContext {
+    pub fn working_context(&self) -> &'a WorkingContext {
         self.working_context
     }
 
@@ -34,31 +34,34 @@ impl<'a> TableContext<'a> {
         self.table = table;
     }
 
-    /// Adds a row to the table
+    /// Adds a row to the terminal table
     pub fn add_row(&mut self, row: Row<'a>) {
         self.table.add_row(row);
     }
 
-    /// Returns the built table string
+    /// Returns the built terminal table string
     pub fn render(&self) -> String {
         self.table.render()
     }
 }
 
-/// Gives tables the required functionality
+/// Gives terminal tables the required functionality
 pub trait TermTable<T: Diff> {
+    /// Get the table as a string optimized for terminal output
     fn render(&self) -> String;
+
+    /// Create the table with the given data
     fn create_table(&mut self, data: &[T]);
+
+    /// Add the header to the table
     fn add_header(&mut self);
+
+    /// Add the rows to the table
     fn add_rows(&mut self, data: &[T]);
 }
 
 /// The data structure arguments are needed to be stored in
-pub type ParsedArgs = (
-    Option<String>,
-    Option<String>,
-    Config,
-);
+pub type ParsedArgs = (Option<String>, Option<String>, Config);
 
 /// How we move the result of diff checking around
 pub type DiffCollection = (
@@ -118,6 +121,9 @@ pub struct Config {
     pub file_a: Option<String>,
     pub file_b: Option<String>,
     pub array_same_order: bool,
+    pub browser_view: Option<String>,
+    pub printer_friendly: bool,
+    pub no_browser_show: bool,
 }
 
 /// Helper class for creating Config instances
@@ -136,6 +142,9 @@ pub struct ConfigBuilder {
     file_a: Option<String>,
     file_b: Option<String>,
     array_same_order: bool,
+    browser_view: Option<String>,
+    printer_friendly: bool,
+    no_browser_show: bool,
 }
 
 impl ConfigBuilder {
@@ -154,6 +163,9 @@ impl ConfigBuilder {
             file_a: None,
             file_b: None,
             array_same_order: false,
+            browser_view: None,
+            printer_friendly: false,
+            no_browser_show: false,
         }
     }
 
@@ -222,6 +234,21 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn browser_view(mut self, browser_view: Option<String>) -> ConfigBuilder {
+        self.browser_view = browser_view;
+        self
+    }
+
+    pub fn printer_friendly(mut self, printer_friendly: bool) -> ConfigBuilder {
+        self.printer_friendly = printer_friendly;
+        self
+    }
+
+    pub fn no_browser_show(mut self, no_browser_show: bool) -> ConfigBuilder {
+        self.no_browser_show = no_browser_show;
+        self
+    }
+
     pub fn build(self) -> Config {
         Config {
             check_for_key_diffs: self.check_for_key_diffs,
@@ -237,6 +264,9 @@ impl ConfigBuilder {
             file_a: self.file_a,
             file_b: self.file_b,
             array_same_order: self.array_same_order,
+            browser_view: self.browser_view,
+            printer_friendly: self.printer_friendly,
+            no_browser_show: self.no_browser_show,
         }
     }
 }
@@ -254,6 +284,13 @@ impl WorkingContext {
             lib_working_context,
             config,
         }
+    }
+
+    /// Get the file names of the two files being compared
+    pub fn get_file_names(&self) -> (&str, &str) {
+        let file_name_a = self.lib_working_context.file_a.name.as_str();
+        let file_name_b = self.lib_working_context.file_b.name.as_str();
+        (file_name_a, file_name_b)
     }
 }
 
