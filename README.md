@@ -137,7 +137,7 @@ To read in the saved file:
 $ dtf -r path/to/read-from <OTHER OPTIONS>
 ```
 
-To produce an HTML file instead and open it in the browser when the program has finished running, you can use [the `-b` flag](#browser-view--b-option). **Not released yet!**
+To produce an HTML file instead and open it in the browser when the program has finished running, you can use [the `-b` flag](#browser-view--b-option).
 
 ```shell
 $ dtf -c file1.json file2.json -ktva -b diffs.html
@@ -189,7 +189,7 @@ Only works if arrays are not supposed to be in the same order ( the `-o` option 
 Tells you if a value is present in an array that's missing from the array with the same key in the other data set.
 ![Alt text](readme_images/array_diffs.jpg)
 
-## Browser view (`-b` option) **Not released yet!**
+## Browser view (`-b` option)
 
 Has no effect if used with `-w`
 
