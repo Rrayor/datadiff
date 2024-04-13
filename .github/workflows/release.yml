@@ -5,7 +5,7 @@ on:
     types:
       - created
     branches:
-      - "release/*"
+      - 'release/*'
 
 env:
   CRATE_NAME: dtfterminal
@@ -54,7 +54,7 @@ jobs:
         toolchain:
           - stable
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Cache cargo & target directories
         uses: Swatinem/rust-cache@v2
       - name: Configure Git
@@ -67,18 +67,18 @@ jobs:
       - name: Build binary
         uses: houseabsolute/actions-rust-cross@v0
         with:
-          command: "build"
+          command: 'build'
           target: ${{ matrix.platform.target }}
           toolchain: ${{ matrix.toolchain }}
-          args: "--release"
+          args: '--release'
           strip: true
       - name: Run tests
         uses: houseabsolute/actions-rust-cross@v0
         with:
-          command: "test"
+          command: 'test'
           target: ${{ matrix.platform.target }}
           toolchain: ${{ matrix.toolchain }}
-          args: "--release"
+          args: '--release'
         if: ${{ !matrix.platform.skip_tests }}
       - name: Package as archive
         shell: bash
@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: dtft-${{ matrix.platform.os_name }}
-          path: "dtft-*"
+          path: 'dtft-*'
         if: matrix.toolchain == 'stable' && github.ref == 'refs/tags/test-release'
       - name: Generate SHA-256
         run: shasum -a 256 ${{ matrix.platform.name }}
@@ -108,9 +108,9 @@ jobs:
           ( startsWith( github.ref, 'refs/tags/v' ) ||
             github.ref == 'refs/tags/test-release' )
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           draft: true
-          files: "dtft-*"
+          files: 'dtft-*'
           body_path: Changes.md
         if: matrix.toolchain == 'stable' && startsWith( github.ref, 'refs/tags/v' )
