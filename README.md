@@ -66,7 +66,7 @@ However there are a couple of dependencies used, which we don't have control ove
   * [serde](https://serde.rs/)
 * [term_table](https://docs.rs/term-table/latest/term_table/)
 * [colored](https://docs.rs/colored/latest/colored/)
-* [html](https://docs.rs/html-builder/latest/html_builder/)
+* [html builder](https://docs.rs/html-builder/latest/html_builder/)
 * [opener](https://docs.rs/opener/latest/opener/)
 * [clap](https://docs.rs/clap/latest/clap/)
 * [serde_json](https://docs.rs/serde_json/latest/serde_json/)
