@@ -69,11 +69,9 @@ impl<'a> KeyTable<'a> {
     /// Adds the header row to the table
     fn add_title_row(&mut self) {
         self.context
-            .add_row(Row::new(vec![TableCell::new_with_alignment(
-                "Key Differences",
-                3,
-                Alignment::Center,
-            )]));
+            .add_row(Row::new(vec![TableCell::builder("Key Differences")
+                .col_span(3)
+                .alignment(Alignment::Center)]));
     }
 
     /// Adds the file names row to the table

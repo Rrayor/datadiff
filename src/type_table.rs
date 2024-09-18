@@ -26,11 +26,10 @@ impl<'a> TermTable<TypeDiff> for TypeTable<'a> {
         let file_name_a = file_name_a_str.to_owned();
         let file_name_b = file_name_b_str.to_owned();
         self.context
-            .add_row(Row::new(vec![TableCell::new_with_alignment(
-                "Type Differences",
-                3,
-                Alignment::Center,
-            )]));
+            .add_row(Row::new(vec![TableCell::builder("Type Differences")
+            .col_span(3)
+            .alignment(Alignment::Center)
+            ]));
         self.context.add_row(Row::new(vec![
             TableCell::new("Key"),
             TableCell::new(file_name_a),

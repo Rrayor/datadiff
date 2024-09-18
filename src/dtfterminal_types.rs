@@ -10,7 +10,7 @@ pub type LibWorkingContext = libdtf::core::diff_types::WorkingContext;
 /// Stores the data required for rendering a table of the differences to the terminal
 pub struct TableContext<'a> {
     working_context: &'a WorkingContext,
-    table: Table<'a>,
+    table: Table,
 }
 
 impl<'a> TableContext<'a> {
@@ -30,12 +30,12 @@ impl<'a> TableContext<'a> {
     }
 
     /// Sets the actual table (term_table::Table)
-    pub fn set_table(&mut self, table: Table<'a>) {
+    pub fn set_table(&mut self, table: Table) {
         self.table = table;
     }
 
     /// Adds a row to the terminal table
-    pub fn add_row(&mut self, row: Row<'a>) {
+    pub fn add_row(&mut self, row: Row) {
         self.table.add_row(row);
     }
 

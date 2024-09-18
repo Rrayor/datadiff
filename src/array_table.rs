@@ -71,11 +71,9 @@ impl<'a> ArrayTable<'a> {
     /// Adds the header row to the table
     fn add_title_row(&mut self) {
         self.context
-            .add_row(Row::new(vec![TableCell::new_with_alignment(
-                "Array Differences",
-                3,
-                Alignment::Center,
-            )]));
+            .add_row(Row::new(vec![TableCell::builder("Array Differences")
+                .col_span(3)
+                .alignment(Alignment::Center)]));
     }
 
     /// Adds the file names row to the table

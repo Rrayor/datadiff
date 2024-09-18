@@ -26,12 +26,10 @@ impl<'a> TermTable<ValueDiff> for ValueTable<'a> {
         let (file_name_a_str, file_name_b_str) = self.context.working_context().get_file_names();
         let file_name_a = file_name_a_str.to_owned();
         let file_name_b = file_name_b_str.to_owned();
-        self.context
-            .add_row(Row::new(vec![TableCell::new_with_alignment(
-                "Value Differences",
-                3,
-                Alignment::Center,
-            )]));
+        self.context.add_row(Row::new(vec![TableCell::builder("Value Differences")
+            .col_span(3)
+            .alignment(Alignment::Center)
+        ]));
         self.context.add_row(Row::new(vec![
             TableCell::new("Key"),
             TableCell::new(file_name_a),
